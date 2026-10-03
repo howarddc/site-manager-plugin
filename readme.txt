@@ -1,0 +1,57 @@
+=== Site Manager ===
+Contributors: robhoward
+Tags: mcp, claude, ai, site management, acf
+Requires at least: 6.2
+Tested up to: 7.1
+Requires PHP: 7.4
+Stable tag: 0.1.0
+License: GPLv2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
+
+Admin-only MCP server that lets Claude and other MCP clients manage your whole WordPress site.
+
+== Description ==
+
+Site Manager turns WordPress into a Model Context Protocol (MCP) server. Connect Claude (claude.ai, Claude Desktop, Cowork or Claude Code) and manage the site in conversation:
+
+* Posts, pages and every custom post type, including custom fields, revisions and Gutenberg blocks
+* Categories, tags and custom taxonomies
+* Media library uploads, alt text and image sizes
+* Users, roles and capabilities
+* Comments and moderation
+* Settings and any option
+* Menus, widgets, themes, customizer settings, additional CSS and global styles
+* Plugins, updates, cron, caches and the debug log
+* Advanced Custom Fields: field groups and values on posts, terms, users and options pages
+* Yoast SEO: titles, meta descriptions, focus keyphrases, robots, social metadata and settings
+* Any REST API route on the site, including routes added by other plugins
+
+Only administrators can connect. Connections use OAuth 2.1 (with dynamic client registration) or WordPress Application Passwords.
+
+Database writes, file writes and PHP execution are disabled by default and can be enabled individually.
+
+== Installation ==
+
+1. Upload the plugin and activate it.
+2. Go to Settings → Site Manager and copy the MCP server URL.
+3. In Claude, open Settings → Connectors → Add custom connector and paste the URL.
+4. Approve the connection in your browser while signed in as an administrator.
+
+== Frequently Asked Questions ==
+
+= Who can connect? =
+
+Only users with the manage_options capability (administrators). The check runs on every request.
+
+= How do I disconnect an application? =
+
+Settings → Site Manager → Connections → Revoke.
+
+= Is there a log? =
+
+Yes. Every write and every error is recorded under Settings → Site Manager → Activity.
+
+== Changelog ==
+
+= 0.1.0 =
+* Initial release: 131 tools across content, taxonomies, media, users, comments, settings, menus, appearance, plugins, maintenance, developer, ACF and Yoast SEO.
