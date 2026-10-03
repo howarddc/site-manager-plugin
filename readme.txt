@@ -1,10 +1,10 @@
 === Site Manager ===
 Contributors: robhoward
-Tags: mcp, claude, ai, site management, acf
+Tags: mcp, claude, ai, woocommerce, elementor
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.1.0
+Stable tag: 0.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -24,6 +24,10 @@ Site Manager turns WordPress into a Model Context Protocol (MCP) server. Connect
 * Plugins, updates, cron, caches and the debug log
 * Advanced Custom Fields: field groups and values on posts, terms, users and options pages
 * Yoast SEO: titles, meta descriptions, focus keyphrases, robots, social metadata and settings
+* WooCommerce: products, variations, stock, orders, refunds, customers, coupons and sales reports
+* Gravity Forms, WPForms and Contact Form 7: forms, notifications and entries / submissions
+* Redirection: redirects, groups, 404 log and redirect log
+* Elementor: page layouts, individual widgets, templates and global kit settings
 * Any REST API route on the site, including routes added by other plugins
 
 Only administrators can connect. Connections use OAuth 2.1 (with dynamic client registration) or WordPress Application Passwords.
@@ -52,6 +56,11 @@ Settings → Site Manager → Connections → Revoke.
 Yes. Every write and every error is recorded under Settings → Site Manager → Activity.
 
 == Changelog ==
+
+= 0.2.0 =
+* Add WooCommerce, Gravity Forms, WPForms, Contact Form 7 (with Flamingo), Redirection and Elementor integrations (70 tools).
+* post_get flags Elementor-built pages.
+* Declare WooCommerce HPOS compatibility.
 
 = 0.1.0 =
 * Initial release: 131 tools across content, taxonomies, media, users, comments, settings, menus, appearance, plugins, maintenance, developer, ACF and Yoast SEO.

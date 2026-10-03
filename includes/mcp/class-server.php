@@ -289,12 +289,13 @@ class Site_Manager_Server {
 			'rest_request can call any REST route on the site (including routes added by other plugins) as the connected admin; use rest_routes_list to discover them.',
 			'Destructive tools accept dry_run where noted. Confirm with the user before deleting content, changing users or roles, or activating/deactivating plugins and themes.',
 		);
-		if ( class_exists( 'Site_Manager_Tools_ACF' ) && Site_Manager_Tools_ACF::is_active() ) {
-			$lines[] = 'Advanced Custom Fields is active: use acf_field_groups_list / acf_field_group_get to learn field names and types before writing values with acf_values_update.';
-		}
-		if ( class_exists( 'Site_Manager_Tools_Yoast' ) && Site_Manager_Tools_Yoast::is_active() ) {
-			$lines[] = 'Yoast SEO is active: use yoast_post_get / yoast_post_update for SEO titles, meta descriptions, focus keyphrases, canonicals and robots settings.';
-		}
+		/**
+		 * Lines of guidance sent to the client at initialize. Integrations
+		 * append a line describing their tools.
+		 *
+		 * @param string[] $lines
+		 */
+		$lines = apply_filters( 'site_manager_instructions', $lines );
 		return implode( "\n", $lines );
 	}
 

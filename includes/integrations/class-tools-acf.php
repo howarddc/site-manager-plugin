@@ -31,6 +31,11 @@ class Site_Manager_Tools_ACF {
 		$r->add_category( 'acf', __( 'Advanced Custom Fields', 'site-manager' ), __( 'ACF field groups, field values on posts/terms/users/options, ACF post types and taxonomies.', 'site-manager' ) );
 		$s = 'Site_Manager_Schema';
 
+		add_filter( 'site_manager_instructions', function ( $lines ) {
+			$lines[] = 'Advanced Custom Fields is active: use acf_field_groups_list / acf_field_group_get to learn field names and types before writing values with acf_values_update.';
+			return $lines;
+		} );
+
 		$object = $s::any( 'Where the values live: a post ID (number), "term_{id}", "user_{id}", "comment_{id}", "option" (default options page) or an options page\'s post_id.' );
 
 		$r->register( 'acf_field_groups_list', array(

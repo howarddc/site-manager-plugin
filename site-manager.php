@@ -2,8 +2,8 @@
 /**
  * Plugin Name:       Site Manager
  * Plugin URI:        https://howard.ai
- * Description:       Admin-only MCP server that exposes WordPress to Claude and other MCP clients: content and custom post types, custom fields, media, users, comments, settings, menus, themes, plugins, ACF and Yoast SEO.
- * Version:           0.1.0
+ * Description:       Admin-only MCP server that exposes WordPress to Claude and other MCP clients: content and custom post types, custom fields, media, users, comments, settings, menus, themes and plugins, with dedicated support for ACF, Yoast SEO, WooCommerce, Gravity Forms, WPForms, Contact Form 7, Redirection and Elementor.
+ * Version:           0.2.0
  * Requires at least: 6.2
  * Requires PHP:      7.4
  * Author:            Rob Howard
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'SITE_MANAGER_VERSION', '0.1.0' );
+define( 'SITE_MANAGER_VERSION', '0.2.0' );
 define( 'SITE_MANAGER_DB_VERSION', '1' );
 define( 'SITE_MANAGER_FILE', __FILE__ );
 define( 'SITE_MANAGER_DIR', __DIR__ );
@@ -49,6 +49,29 @@ require_once __DIR__ . '/includes/tools/class-tools-maintenance.php';
 require_once __DIR__ . '/includes/tools/class-tools-developer.php';
 require_once __DIR__ . '/includes/integrations/class-tools-acf.php';
 require_once __DIR__ . '/includes/integrations/class-tools-yoast.php';
+require_once __DIR__ . '/includes/integrations/class-tools-woocommerce.php';
+require_once __DIR__ . '/includes/integrations/class-tools-gravity-forms.php';
+require_once __DIR__ . '/includes/integrations/class-tools-wpforms.php';
+require_once __DIR__ . '/includes/integrations/class-tools-cf7.php';
+require_once __DIR__ . '/includes/integrations/class-tools-redirection.php';
+require_once __DIR__ . '/includes/integrations/class-tools-elementor.php';
+
+/**
+ * Third-party plugin integrations: slug => class. Each class has static
+ * is_active() and version(), and registers its tools only when active.
+ */
+function site_manager_integrations() {
+	return array(
+		'acf'           => 'Site_Manager_Tools_ACF',
+		'yoast'         => 'Site_Manager_Tools_Yoast',
+		'woocommerce'   => 'Site_Manager_Tools_WooCommerce',
+		'gravity_forms' => 'Site_Manager_Tools_Gravity_Forms',
+		'wpforms'       => 'Site_Manager_Tools_WPForms',
+		'cf7'           => 'Site_Manager_Tools_CF7',
+		'redirection'   => 'Site_Manager_Tools_Redirection',
+		'elementor'     => 'Site_Manager_Tools_Elementor',
+	);
+}
 
 /**
  * Create / upgrade custom tables. Runs on activation and whenever the stored
@@ -102,11 +125,10 @@ add_action( 'init', function () {
 	new Site_Manager_Tools_Maintenance( $r );
 	new Site_Manager_Tools_Developer( $r );
 
-	if ( Site_Manager_Tools_ACF::is_active() ) {
-		new Site_Manager_Tools_ACF( $r );
-	}
-	if ( Site_Manager_Tools_Yoast::is_active() ) {
-		new Site_Manager_Tools_Yoast( $r );
+	foreach ( site_manager_integrations() as $class ) {
+		if ( $class::is_active() ) {
+			new $class( $r );
+		}
 	}
 
 	/**
@@ -117,6 +139,13 @@ add_action( 'init', function () {
 	 */
 	do_action( 'site_manager_register_tools', $r );
 }, 99 );
+
+// WooCommerce: declare compatibility with High-Performance Order Storage.
+add_action( 'before_woocommerce_init', function () {
+	if ( class_exists( '\\Automattic\\WooCommerce\\Utilities\\FeaturesUtil' ) ) {
+		\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', __FILE__, true );
+	}
+} );
 
 add_action( 'site_manager_daily', function () {
 	Site_Manager_OAuth_Store::purge_expired();

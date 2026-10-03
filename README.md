@@ -1,6 +1,6 @@
 # Site Manager
 
-An admin-only [Model Context Protocol](https://modelcontextprotocol.io) server for WordPress. Connect Claude (claude.ai, Claude Desktop, Cowork, Claude Code) or any MCP client and manage the whole site: content and custom post types, custom fields, media, users, comments, settings, menus, themes, plugins, ACF and Yoast SEO.
+An admin-only [Model Context Protocol](https://modelcontextprotocol.io) server for WordPress. Connect Claude (claude.ai, Claude Desktop, Cowork, Claude Code) or any MCP client and manage the whole site: content and custom post types, custom fields, media, users, comments, settings, menus, themes and plugins — plus dedicated support for ACF, Yoast SEO, WooCommerce, Gravity Forms, WPForms, Contact Form 7, Redirection and Elementor.
 
 - **Author:** Rob Howard — https://howard.ai
 - **License:** GPL v2 or later
@@ -23,7 +23,7 @@ An admin-only [Model Context Protocol](https://modelcontextprotocol.io) server f
 
 Only users with `manage_options` (administrators) can approve a connection or call the endpoint. The capability is re-checked on every request, so demoting a user cuts off their tokens immediately.
 
-## Tools (131)
+## Tools (201)
 
 | Group | Tools |
 | --- | --- |
@@ -41,10 +41,18 @@ Only users with `manage_options` (administrators) can approve a connection or ca
 | Developer | `rest_routes_list`, `rest_request`, `db_tables_list`, `db_query`, `file_list`, `file_read`, `hooks_list`, `shortcodes_list`, plus gated `db_execute`, `file_write`, `file_delete`, `php_execute` |
 | ACF (when active) | `acf_field_groups_list`, `acf_field_group_get`, `acf_field_group_save`, `acf_field_group_delete`, `acf_values_get`, `acf_values_update`, `acf_options_pages_list`, `acf_post_types_list`, `acf_post_type_save` |
 | Yoast SEO (when active) | `yoast_post_get`, `yoast_post_update`, `yoast_posts_audit`, `yoast_term_get`, `yoast_term_update`, `yoast_settings_get`, `yoast_settings_update`, `yoast_redirects_list` |
+| WooCommerce (when active) | `wc_store_info`, `wc_products_list`, `wc_product_get`, `wc_product_create`, `wc_product_update`, `wc_product_delete`, `wc_variation_save`, `wc_stock_update`, `wc_attributes_list`, `wc_attribute_create`, `wc_orders_list`, `wc_order_get`, `wc_order_create`, `wc_order_update`, `wc_order_refund`, `wc_customers_list`, `wc_customer_get`, `wc_customer_update`, `wc_coupons_list`, `wc_coupon_save`, `wc_coupon_delete`, `wc_sales_report` |
+| Gravity Forms (when active) | `gf_forms_list`, `gf_form_get`, `gf_form_save`, `gf_form_set_active`, `gf_form_delete`, `gf_entries_list`, `gf_entry_get`, `gf_entry_create`, `gf_entry_update`, `gf_entry_delete`, `gf_entry_resend_notifications` |
+| WPForms (when active) | `wpforms_forms_list`, `wpforms_form_get`, `wpforms_form_save`, `wpforms_form_delete`, `wpforms_entries_list`, `wpforms_entry_get` (entries need Pro) |
+| Contact Form 7 (when active) | `cf7_forms_list`, `cf7_form_get`, `cf7_form_save`, `cf7_form_duplicate`, `cf7_form_delete`, `cf7_submissions_list` (submissions need Flamingo) |
+| Redirection (when active) | `redirection_setup`, `redirection_list`, `redirection_create`, `redirection_bulk_create`, `redirection_update`, `redirection_delete`, `redirection_groups`, `redirection_404s`, `redirection_404s_clear`, `redirection_log`, `redirection_test_url` |
+| Elementor (when active) | `elementor_status`, `elementor_pages_list`, `elementor_document_get`, `elementor_document_save`, `elementor_element_get`, `elementor_element_update`, `elementor_element_insert`, `elementor_element_delete`, `elementor_text_replace`, `elementor_templates_list`, `elementor_kit_get`, `elementor_kit_update`, `elementor_widgets_list`, `elementor_css_regenerate` |
 
 `post_create` / `post_update` also accept `terms`, `meta`, `acf`, `yoast`, `featured_image_id` and `template`, so one call can fully set up a post of any type.
 
-`rest_request` calls any REST route on the site internally as the connected admin, which reaches every plugin with a REST API (WooCommerce, Gravity Forms, …) without dedicated tools.
+`rest_request` calls any REST route on the site internally as the connected admin, which reaches every other plugin with a REST API (and WooCommerce settings, tax rates, shipping zones and webhooks via `/wc/v3`).
+
+Integration tools only appear when their plugin is active. Elementor pages keep their layout in an element tree rather than `post_content`; `post_get` flags them with `page_builder: "elementor"` and the `elementor_element_*` tools edit individual widgets.
 
 ## Safety
 

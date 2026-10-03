@@ -72,6 +72,11 @@ class Site_Manager_Tools_Yoast {
 		$r->add_category( 'yoast', __( 'Yoast SEO', 'site-manager' ), __( 'SEO titles, meta descriptions, focus keyphrases, robots, social metadata, Yoast settings.', 'site-manager' ) );
 		$s = 'Site_Manager_Schema';
 
+		add_filter( 'site_manager_instructions', function ( $lines ) {
+			$lines[] = 'Yoast SEO is active: use yoast_post_get / yoast_post_update for SEO titles, meta descriptions, focus keyphrases, canonicals and robots settings.';
+			return $lines;
+		} );
+
 		$post_fields = array(
 			'title'               => $s::str( 'SEO title template, e.g. "%%title%% %%sep%% %%sitename%%".' ),
 			'description'         => $s::str( 'Meta description.' ),

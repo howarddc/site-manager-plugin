@@ -17,7 +17,7 @@ class Site_Manager_Tools_Site {
 
 		$r->register( 'site_info', array(
 			'category'     => 'site',
-			'description'  => 'Overview of the site: name, URLs, WordPress/PHP/database versions, active theme, active plugins, post types, taxonomies, content counts, permalink structure, timezone, multisite and debug flags, and which integrations (ACF, Yoast) are active. Call this first.',
+			'description'  => 'Overview of the site: name, URLs, WordPress/PHP/database versions, active theme, active plugins, post types, taxonomies, content counts, permalink structure, timezone, multisite and debug flags, and which integrations (ACF, Yoast, WooCommerce, Gravity Forms, WPForms, Contact Form 7, Redirection, Elementor) are active. Call this first.',
 			'handler'      => array( $this, 'site_info' ),
 		) );
 
@@ -98,10 +98,9 @@ class Site_Manager_Tools_Site {
 			'post_types'         => $types,
 			'taxonomies'         => $taxonomies,
 			'users'              => array( 'total' => (int) $users['total_users'], 'by_role' => $users['avail_roles'] ),
-			'integrations'       => array(
-				'acf'   => Site_Manager_Tools_ACF::is_active() ? Site_Manager_Tools_ACF::version() : false,
-				'yoast' => Site_Manager_Tools_Yoast::is_active() ? Site_Manager_Tools_Yoast::version() : false,
-			),
+			'integrations'       => array_map( function ( $class ) {
+				return $class::is_active() ? $class::version() : false;
+			}, site_manager_integrations() ),
 			'debug'              => array(
 				'WP_DEBUG'           => defined( 'WP_DEBUG' ) && WP_DEBUG,
 				'WP_DEBUG_LOG'       => defined( 'WP_DEBUG_LOG' ) ? WP_DEBUG_LOG : false,

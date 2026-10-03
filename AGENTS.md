@@ -26,7 +26,8 @@ includes/mcp/class-server.php    JSON-RPC over POST /wp-json/site-manager/v1/mcp
 includes/oauth/                  Discovery (.well-known), DCR/authorize/token, token store
 includes/admin/class-admin.php   Settings → Site Manager (Connect / Tools / Connections / Activity)
 includes/tools/                  Core WordPress tool classes, one per category
-includes/integrations/           ACF, Yoast (registered only when the plugin is active)
+includes/integrations/           ACF, Yoast, WooCommerce, Gravity Forms, WPForms, CF7, Redirection, Elementor
+                                 (registered only when the plugin is active)
 ```
 
 ## Conventions
@@ -36,7 +37,8 @@ includes/integrations/           ACF, Yoast (registered only when the plugin is 
 - Handlers take `array $args`, return an array/scalar or `WP_Error`. The server JSON-encodes into a text content block and logs writes/errors.
 - Use `wp_slash()` on anything passed to `wp_insert_post`, `wp_update_post`, `update_metadata`, etc.
 - Empty object schemas: `Site_Manager_Schema::obj()` — the server converts empty `properties` to `{}`. For "any type" array items use `new stdClass()`, never `array()`.
-- Add a new integration as `includes/integrations/class-tools-<name>.php` with a static `is_active()`, required from `site-manager.php` and constructed conditionally in the `init` hook.
+- Add a new integration as `includes/integrations/class-tools-<name>.php` with static `is_active()` and `version()`, require it from `site-manager.php`, and add it to `site_manager_integrations()`. In the constructor, add a line of model guidance via the `site_manager_instructions` filter.
+- Prefer a plugin's own model/CRUD layer (WC_Product, GFAPI, Red_Item, Elementor Document::save) over raw meta writes, so caches, hooks and CSS regeneration still happen.
 - Third parties can add tools via the `site_manager_register_tools` action.
 
 ## Testing
@@ -47,6 +49,9 @@ No test suite yet. A disposable local WordPress works well:
 2. `wp core install`, symlink this repo to `wp-content/plugins/site-manager`, activate.
 3. `php -S 127.0.0.1:8899 router.php` (router that falls back to `index.php`).
 4. Create an Application Password and POST JSON-RPC to `/wp-json/site-manager/v1/mcp` with Basic auth.
+5. With many plugins active, run WP-CLI with `php -d memory_limit=1G`.
+
+Note: `php -S` is single-threaded, so loopback requests (`redirection_test_url`, Site Health loopback tests) time out there but work on a real server.
 
 Count tools: `grep -rho "register( '" includes/tools includes/integrations | wc -l`
 
@@ -56,6 +61,7 @@ Bump `Version:` and `SITE_MANAGER_VERSION` in `site-manager.php` and `Stable tag
 
 ## Ideas / next
 
-- Integrations for common free plugins: WooCommerce (beyond `rest_request`), Gravity Forms / WPForms / Contact Form 7, Elementor data, Rank Math, Redirection, WP Rocket, UpdraftPlus.
+- More integrations: Rank Math, WP Rocket, UpdraftPlus, The Events Calendar, LearnDash, MemberPress, Beaver Builder / Divi.
+- Gravity Forms tools have not yet been run against a live Gravity Forms install (commercial plugin).
 - Multisite network tools.
 - MCP resources (e.g. expose posts as resources) and prompts.

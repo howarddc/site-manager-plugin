@@ -105,6 +105,9 @@ class Site_Manager_Helpers {
 		$out['featured_image'] = self::featured_image( $post->ID );
 		$out['terms']          = self::post_terms( $post->ID );
 		$out['edit_link']      = get_edit_post_link( $post->ID, 'raw' );
+		if ( class_exists( 'Site_Manager_Tools_Elementor' ) && Site_Manager_Tools_Elementor::is_active() && Site_Manager_Tools_Elementor::is_built_with( $post->ID ) ) {
+			$out['page_builder'] = 'elementor';
+		}
 		if ( $opts['include_content'] ) {
 			$out['content'] = $post->post_content;
 		}
