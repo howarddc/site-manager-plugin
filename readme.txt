@@ -4,7 +4,7 @@ Tags: mcp, claude, ai, woocommerce, elementor
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.2.0
+Stable tag: 0.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -29,6 +29,7 @@ Site Manager turns WordPress into a Model Context Protocol (MCP) server. Connect
 * Redirection: redirects, groups, 404 log and redirect log
 * Elementor: page layouts, individual widgets, templates and global kit settings
 * Any REST API route on the site, including routes added by other plugins
+* A site-wide activity log of every detectable action — logins, updates with versions, users and roles, content, settings, file edits, exports — for monthly reports and security audits
 
 Only administrators can connect. Connections use OAuth 2.1 (with dynamic client registration) or WordPress Application Passwords.
 
@@ -53,9 +54,15 @@ Settings → Site Manager → Connections → Revoke.
 
 = Is there a log? =
 
-Yes. Every write and every error is recorded under Settings → Site Manager → Activity.
+Two. Settings → Site Manager → Activity Log records every detectable action on the site by anyone (with CSV export and an MCP report tool). MCP Calls records every tool call made through the MCP server.
 
 == Changelog ==
+
+= 0.3.0 =
+* Site-wide activity log: authentication, users and roles, core/plugin/theme/translation updates with versions (including automatic and failed updates), content, media, menus, widgets, comments, settings, file editor, exports, privacy requests, WooCommerce, Gravity Forms, Redirection and MCP activity.
+* Activity Log admin tab with filters and CSV export; MCP tools activity_log_query, activity_stats and activity_report.
+* Settings for activity retention, IP storage and proxy header.
+* MCP log renamed to MCP Calls; application-password clients are identified by name.
 
 = 0.2.0 =
 * Add WooCommerce, Gravity Forms, WPForms, Contact Form 7 (with Flamingo), Redirection and Elementor integrations (70 tools).

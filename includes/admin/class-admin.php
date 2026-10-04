@@ -2,11 +2,12 @@
 /**
  * Admin screen: Settings → Site Manager.
  *
- * Four tabs, all standard WordPress admin markup:
+ * Tabs, all standard WordPress admin markup:
  *   Connect      — endpoint URL and setup steps for Claude apps
- *   Tools        — enable/disable tool categories and gated capabilities
+ *   Tools        — tool categories, gated capabilities, log settings
  *   Connections  — OAuth clients holding tokens, with revoke
- *   Activity     — log of tool calls
+ *   Activity Log — site-wide audit trail of every detectable action
+ *   MCP Calls    — log of MCP tool calls
  *
  * @package Site_Manager
  */
@@ -24,6 +25,7 @@ class Site_Manager_Admin {
 		add_action( 'admin_post_site_manager_save_tools', array( $this, 'save_tools' ) );
 		add_action( 'admin_post_site_manager_revoke', array( $this, 'revoke' ) );
 		add_action( 'admin_post_site_manager_clear_log', array( $this, 'clear_log' ) );
+		add_action( 'admin_post_site_manager_activity_export', array( $this, 'activity_export' ) );
 	}
 
 	public static function url( $tab = '', array $args = array() ) {
@@ -49,7 +51,8 @@ class Site_Manager_Admin {
 			'connect'     => __( 'Connect', 'site-manager' ),
 			'tools'       => __( 'Tools', 'site-manager' ),
 			'connections' => __( 'Connections', 'site-manager' ),
-			'activity'    => __( 'Activity', 'site-manager' ),
+			'activity'    => __( 'Activity Log', 'site-manager' ),
+			'mcp'         => __( 'MCP Calls', 'site-manager' ),
 		);
 	}
 
@@ -235,6 +238,40 @@ class Site_Manager_Admin {
 			<h2><?php esc_html_e( 'Activity log', 'site-manager' ); ?></h2>
 			<table class="form-table" role="presentation">
 				<tr>
+					<th scope="row"><?php esc_html_e( 'Site activity', 'site-manager' ); ?></th>
+					<td>
+						<label>
+							<input type="checkbox" name="activity_enabled" value="1" <?php checked( ! empty( $settings['activity_enabled'] ) ); ?> />
+							<?php esc_html_e( 'Record every detectable action on the site (logins, updates, content, users, settings…).', 'site-manager' ); ?>
+						</label>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="sm-activity-retention"><?php esc_html_e( 'Keep site activity for', 'site-manager' ); ?></label></th>
+					<td>
+						<input type="number" id="sm-activity-retention" name="activity_retention_days" min="0" max="3650" class="small-text" value="<?php echo (int) $settings['activity_retention_days']; ?>" />
+						<?php esc_html_e( 'days', 'site-manager' ); ?>
+						<p class="description"><?php esc_html_e( '0 keeps entries forever. Audits usually need at least 365 days.', 'site-manager' ); ?></p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="sm-activity-ip"><?php esc_html_e( 'IP addresses', 'site-manager' ); ?></label></th>
+					<td>
+						<select id="sm-activity-ip" name="activity_ip">
+							<option value="full" <?php selected( $settings['activity_ip'], 'full' ); ?>><?php esc_html_e( 'Store full IP', 'site-manager' ); ?></option>
+							<option value="anonymized" <?php selected( $settings['activity_ip'], 'anonymized' ); ?>><?php esc_html_e( 'Anonymize (drop last octet)', 'site-manager' ); ?></option>
+							<option value="off" <?php selected( $settings['activity_ip'], 'off' ); ?>><?php esc_html_e( 'Do not store', 'site-manager' ); ?></option>
+						</select>
+						<label for="sm-activity-ip-header" style="margin-left:12px;"><?php esc_html_e( 'Read from', 'site-manager' ); ?></label>
+						<select id="sm-activity-ip-header" name="activity_ip_header">
+							<?php foreach ( self::ip_headers() as $header => $label ) : ?>
+								<option value="<?php echo esc_attr( $header ); ?>" <?php selected( $settings['activity_ip_header'], $header ); ?>><?php echo esc_html( $label ); ?></option>
+							<?php endforeach; ?>
+						</select>
+						<p class="description"><?php esc_html_e( 'Only choose a proxy header if the site is behind that proxy (otherwise visitors can fake their IP).', 'site-manager' ); ?></p>
+					</td>
+				</tr>
+				<tr>
 					<th scope="row"><?php esc_html_e( 'Log reads', 'site-manager' ); ?></th>
 					<td>
 						<label>
@@ -244,7 +281,7 @@ class Site_Manager_Admin {
 					</td>
 				</tr>
 				<tr>
-					<th scope="row"><label for="sm-retention"><?php esc_html_e( 'Keep entries for', 'site-manager' ); ?></label></th>
+					<th scope="row"><label for="sm-retention"><?php esc_html_e( 'Keep MCP calls for', 'site-manager' ); ?></label></th>
 					<td>
 						<input type="number" id="sm-retention" name="log_retention_days" min="1" max="3650" class="small-text" value="<?php echo (int) $settings['log_retention_days']; ?>" />
 						<?php esc_html_e( 'days', 'site-manager' ); ?>
@@ -269,6 +306,10 @@ class Site_Manager_Admin {
 			'disabled_categories' => array_values( array_diff( $all, $enabled ) ),
 			'log_reads'           => ! empty( $_POST['log_reads'] ),
 			'log_retention_days'  => max( 1, min( 3650, (int) ( isset( $_POST['log_retention_days'] ) ? $_POST['log_retention_days'] : 30 ) ) ),
+			'activity_enabled'        => ! empty( $_POST['activity_enabled'] ),
+			'activity_retention_days' => max( 0, min( 3650, (int) ( isset( $_POST['activity_retention_days'] ) ? $_POST['activity_retention_days'] : 365 ) ) ),
+			'activity_ip'             => isset( $_POST['activity_ip'] ) && in_array( $_POST['activity_ip'], array( 'full', 'anonymized', 'off' ), true ) ? $_POST['activity_ip'] : 'full',
+			'activity_ip_header'      => isset( $_POST['activity_ip_header'] ) && isset( self::ip_headers()[ $_POST['activity_ip_header'] ] ) ? $_POST['activity_ip_header'] : 'REMOTE_ADDR',
 		);
 		foreach ( array_keys( Site_Manager_Settings::gates() ) as $gate ) {
 			$values[ $gate ] = ! empty( $_POST[ $gate ] );
@@ -349,8 +390,22 @@ class Site_Manager_Admin {
 		check_admin_referer( 'site_manager_revoke' );
 		if ( ! empty( $_POST['all'] ) ) {
 			Site_Manager_OAuth_Store::revoke_all();
+			$name = __( 'all clients', 'site-manager' );
 		} elseif ( ! empty( $_POST['client_id'] ) ) {
-			Site_Manager_OAuth_Store::revoke_client( sanitize_text_field( wp_unslash( $_POST['client_id'] ) ), isset( $_POST['user_id'] ) ? (int) $_POST['user_id'] : null );
+			$client_id = sanitize_text_field( wp_unslash( $_POST['client_id'] ) );
+			$client    = Site_Manager_OAuth_Store::get_client( $client_id );
+			$name      = $client ? $client['client_name'] : $client_id;
+			Site_Manager_OAuth_Store::revoke_client( $client_id, isset( $_POST['user_id'] ) ? (int) $_POST['user_id'] : null );
+		}
+		if ( isset( $name ) ) {
+			Site_Manager_Activity::log( array(
+				'category'    => 'site_manager',
+				'action'      => 'mcp_client_revoked',
+				'severity'    => 'notice',
+				'object_type' => 'oauth_client',
+				'object_name' => $name,
+				'message'     => sprintf( 'MCP access revoked for %s.', $name ),
+			) );
 		}
 		wp_safe_redirect( self::url( 'connections', array( 'message' => 'revoked' ) ) );
 		exit;
@@ -360,7 +415,181 @@ class Site_Manager_Admin {
 	// Activity
 	// ---------------------------------------------------------------
 
+	public static function ip_headers() {
+		return array(
+			'REMOTE_ADDR'           => __( 'Connection (REMOTE_ADDR)', 'site-manager' ),
+			'HTTP_CF_CONNECTING_IP' => __( 'Cloudflare (CF-Connecting-IP)', 'site-manager' ),
+			'HTTP_X_FORWARDED_FOR'  => __( 'Proxy / load balancer (X-Forwarded-For)', 'site-manager' ),
+			'HTTP_X_REAL_IP'        => __( 'Nginx proxy (X-Real-IP)', 'site-manager' ),
+		);
+	}
+
+	/** Activity-log filters from the query string. */
+	private static function activity_filters() {
+		$f = array();
+		foreach ( array( 'after', 'before', 'category', 'severity', 'source', 'search', 'user_login', 'action' ) as $key ) {
+			if ( isset( $_GET[ $key ] ) && $_GET[ $key ] !== '' ) {
+				$f[ $key ] = sanitize_text_field( wp_unslash( $_GET[ $key ] ) );
+			}
+		}
+		return $f;
+	}
+
 	private function render_activity() {
+		$filters  = self::activity_filters();
+		$page     = isset( $_GET['paged'] ) ? max( 1, (int) $_GET['paged'] ) : 1;
+		$per_page = 50;
+		$result   = Site_Manager_Activity::query( $filters, $page, $per_page );
+		$pages    = (int) ceil( $result['total'] / $per_page );
+		$colors   = array( 'notice' => '#2271b1', 'warning' => '#996800', 'critical' => '#d63638' );
+		$select   = function ( $name, $label, array $values ) use ( $filters ) {
+			echo '<label class="screen-reader-text" for="sm-f-' . esc_attr( $name ) . '">' . esc_html( $label ) . '</label>';
+			echo '<select id="sm-f-' . esc_attr( $name ) . '" name="' . esc_attr( $name ) . '"><option value="">' . esc_html( $label ) . '</option>';
+			foreach ( $values as $v ) {
+				echo '<option value="' . esc_attr( $v ) . '"' . selected( isset( $filters[ $name ] ) ? $filters[ $name ] : '', $v, false ) . '>' . esc_html( $v ) . '</option>';
+			}
+			echo '</select> ';
+		};
+		if ( ! Site_Manager_Activity::enabled() ) {
+			echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'Site activity logging is turned off (Tools tab). Existing entries are shown below.', 'site-manager' ) . '</p></div>';
+		}
+		?>
+		<form method="get" style="margin:12px 0;">
+			<input type="hidden" name="page" value="<?php echo esc_attr( self::PAGE ); ?>" />
+			<input type="hidden" name="tab" value="activity" />
+			<label for="sm-f-after"><?php esc_html_e( 'From', 'site-manager' ); ?></label>
+			<input type="date" id="sm-f-after" name="after" value="<?php echo esc_attr( isset( $filters['after'] ) ? $filters['after'] : '' ); ?>" />
+			<label for="sm-f-before"><?php esc_html_e( 'to', 'site-manager' ); ?></label>
+			<input type="date" id="sm-f-before" name="before" value="<?php echo esc_attr( isset( $filters['before'] ) ? $filters['before'] : '' ); ?>" />
+			<?php
+			$select( 'category', __( 'All categories', 'site-manager' ), Site_Manager_Activity::distinct( 'category' ) );
+			$select( 'severity', __( 'All severities', 'site-manager' ), Site_Manager_Activity::SEVERITIES );
+			$select( 'source', __( 'All sources', 'site-manager' ), Site_Manager_Activity::distinct( 'source' ) );
+			?>
+			<label class="screen-reader-text" for="sm-f-user"><?php esc_html_e( 'User', 'site-manager' ); ?></label>
+			<input type="search" id="sm-f-user" name="user_login" size="12" placeholder="<?php esc_attr_e( 'Username', 'site-manager' ); ?>" value="<?php echo esc_attr( isset( $filters['user_login'] ) ? $filters['user_login'] : '' ); ?>" />
+			<label class="screen-reader-text" for="sm-f-search"><?php esc_html_e( 'Search', 'site-manager' ); ?></label>
+			<input type="search" id="sm-f-search" name="search" placeholder="<?php esc_attr_e( 'Search text, IP…', 'site-manager' ); ?>" value="<?php echo esc_attr( isset( $filters['search'] ) ? $filters['search'] : '' ); ?>" />
+			<?php submit_button( __( 'Filter', 'site-manager' ), 'secondary', '', false ); ?>
+			<a class="button" href="<?php echo esc_url( wp_nonce_url( add_query_arg( array_merge( $filters, array( 'action' => 'site_manager_activity_export' ) ), admin_url( 'admin-post.php' ) ), 'site_manager_activity_export' ) ); ?>"><?php esc_html_e( 'Export CSV', 'site-manager' ); ?></a>
+		</form>
+
+		<p class="description">
+			<?php
+			printf(
+				/* translators: %s: number of events */
+				esc_html__( '%s events match. Times are in the site timezone.', 'site-manager' ),
+				esc_html( number_format_i18n( $result['total'] ) )
+			);
+			?>
+		</p>
+
+		<table class="widefat striped">
+			<thead>
+				<tr>
+					<th scope="col" style="width:150px;"><?php esc_html_e( 'Time', 'site-manager' ); ?></th>
+					<th scope="col" style="width:140px;"><?php esc_html_e( 'User', 'site-manager' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Event', 'site-manager' ); ?></th>
+					<th scope="col" style="width:180px;"><?php esc_html_e( 'Source', 'site-manager' ); ?></th>
+				</tr>
+			</thead>
+			<tbody>
+			<?php if ( ! $result['rows'] ) : ?>
+				<tr><td colspan="4"><?php esc_html_e( 'No activity recorded yet.', 'site-manager' ); ?></td></tr>
+			<?php endif; ?>
+			<?php foreach ( $result['rows'] as $raw ) : ?>
+				<?php $row = Site_Manager_Activity::format_row( $raw ); ?>
+				<tr>
+					<td>
+						<?php echo esc_html( $row['time'] ); ?>
+						<?php if ( $row['occurrences'] > 1 ) : ?>
+							<br /><span class="description"><?php echo esc_html( sprintf( __( '×%1$d, last %2$s', 'site-manager' ), $row['occurrences'], $row['last_time'] ) ); ?></span>
+						<?php endif; ?>
+					</td>
+					<td>
+						<?php echo $row['user'] !== '' ? esc_html( $row['user'] ) : '<span class="description">' . esc_html( $row['source'] === 'cron' ? __( 'system', 'site-manager' ) : __( 'visitor', 'site-manager' ) ) . '</span>'; ?>
+						<?php if ( $row['role'] ) : ?><br /><span class="description"><?php echo esc_html( $row['role'] ); ?></span><?php endif; ?>
+					</td>
+					<td>
+						<?php if ( $row['severity'] !== 'info' ) : ?>
+							<strong style="color:<?php echo esc_attr( $colors[ $row['severity'] ] ); ?>;text-transform:uppercase;font-size:11px;"><?php echo esc_html( $row['severity'] ); ?></strong>
+						<?php endif; ?>
+						<?php echo esc_html( $row['message'] ); ?>
+						<br /><span class="description"><code style="font-size:11px;"><?php echo esc_html( $row['category'] . ' / ' . $row['action'] ); ?></code></span>
+						<?php if ( $row['details'] ) : ?>
+							<details style="display:inline;"><summary style="display:inline;cursor:pointer;" class="description"> <?php esc_html_e( 'details', 'site-manager' ); ?></summary><pre style="white-space:pre-wrap;word-break:break-all;font-size:12px;max-width:640px;"><?php echo esc_html( wp_json_encode( $row['details'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) ); ?></pre></details>
+						<?php endif; ?>
+					</td>
+					<td>
+						<?php echo esc_html( $row['source'] ); ?><?php echo $row['via'] ? '<br /><span class="description">' . esc_html( $row['via'] ) . '</span>' : ''; ?>
+						<?php if ( $row['ip'] ) : ?><br /><span class="description" title="<?php echo esc_attr( $row['user_agent'] ); ?>"><?php echo esc_html( $row['ip'] ); ?></span><?php endif; ?>
+					</td>
+				</tr>
+			<?php endforeach; ?>
+			</tbody>
+		</table>
+
+		<?php if ( $pages > 1 ) : ?>
+			<div class="tablenav"><div class="tablenav-pages">
+				<?php
+				echo wp_kses_post( paginate_links( array(
+					'base'    => add_query_arg( 'paged', '%#%' ),
+					'format'  => '',
+					'current' => $page,
+					'total'   => $pages,
+				) ) );
+				?>
+			</div></div>
+		<?php endif; ?>
+		<?php
+	}
+
+	/** Stream the filtered activity log as CSV. */
+	public function activity_export() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Sorry, you are not allowed to do that.', 'site-manager' ), 403 );
+		}
+		check_admin_referer( 'site_manager_activity_export' );
+		$filters = self::activity_filters();
+		unset( $filters['action'] ); // "action" here is the admin-post route.
+
+		Site_Manager_Activity::log( array(
+			'category'    => 'site_manager',
+			'action'      => 'activity_log_exported',
+			'severity'    => 'notice',
+			'object_type' => 'log',
+			'object_name' => 'Activity log',
+			'message'     => 'Activity log exported to CSV.',
+			'details'     => array( 'filters' => $filters ),
+		) );
+
+		nocache_headers();
+		header( 'Content-Type: text/csv; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="activity-' . sanitize_file_name( wp_parse_url( home_url(), PHP_URL_HOST ) ) . '-' . wp_date( 'Y-m-d' ) . '.csv"' );
+		$out     = fopen( 'php://output', 'w' );
+		$columns = array( 'id', 'time', 'last_time', 'occurrences', 'user', 'role', 'user_id', 'severity', 'category', 'action', 'object_type', 'object_id', 'object_name', 'message', 'source', 'via', 'ip', 'user_agent', 'details' );
+		fputcsv( $out, $columns, ',', '"', '' );
+		$page = 1;
+		do {
+			$result = Site_Manager_Activity::query( $filters, $page, 1000 );
+			foreach ( $result['rows'] as $raw ) {
+				$row            = Site_Manager_Activity::format_row( $raw );
+				$row['details'] = $row['details'] ? wp_json_encode( $row['details'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) : '';
+				$line           = array();
+				foreach ( $columns as $col ) {
+					// Neutralize spreadsheet formula injection.
+					$value  = (string) $row[ $col ];
+					$line[] = preg_match( '/^[=+\-@]/', $value ) ? "'" . $value : $value;
+				}
+				fputcsv( $out, $line, ',', '"', '' );
+			}
+			$page++;
+		} while ( count( $result['rows'] ) === 1000 && $page <= 100 );
+		fclose( $out );
+		exit;
+	}
+
+	private function render_mcp() {
 		$page    = isset( $_GET['paged'] ) ? max( 1, (int) $_GET['paged'] ) : 1;
 		$filters = array(
 			'tool'   => isset( $_GET['tool'] ) ? sanitize_key( $_GET['tool'] ) : '',
@@ -372,7 +601,7 @@ class Site_Manager_Admin {
 		?>
 		<form method="get" style="margin:12px 0;">
 			<input type="hidden" name="page" value="<?php echo esc_attr( self::PAGE ); ?>" />
-			<input type="hidden" name="tab" value="activity" />
+			<input type="hidden" name="tab" value="mcp" />
 			<label class="screen-reader-text" for="sm-tool"><?php esc_html_e( 'Tool', 'site-manager' ); ?></label>
 			<input type="search" id="sm-tool" name="tool" placeholder="<?php esc_attr_e( 'Tool name', 'site-manager' ); ?>" value="<?php echo esc_attr( $filters['tool'] ); ?>" />
 			<select name="status">
@@ -443,7 +672,15 @@ class Site_Manager_Admin {
 		}
 		check_admin_referer( 'site_manager_clear_log' );
 		Site_Manager_Log::clear();
-		wp_safe_redirect( self::url( 'activity', array( 'message' => 'cleared' ) ) );
+		Site_Manager_Activity::log( array(
+			'category'    => 'site_manager',
+			'action'      => 'mcp_log_cleared',
+			'severity'    => 'warning',
+			'object_type' => 'log',
+			'object_name' => 'MCP calls log',
+			'message'     => 'MCP calls log cleared.',
+		) );
+		wp_safe_redirect( self::url( 'mcp', array( 'message' => 'cleared' ) ) );
 		exit;
 	}
 }

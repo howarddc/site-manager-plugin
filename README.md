@@ -23,11 +23,37 @@ An admin-only [Model Context Protocol](https://modelcontextprotocol.io) server f
 
 Only users with `manage_options` (administrators) can approve a connection or call the endpoint. The capability is re-checked on every request, so demoting a user cuts off their tokens immediately.
 
-## Tools (201)
+## Activity log
+
+Site Manager records every action WordPress can detect, by any user, cron, WP-CLI or MCP client, in its own table (`{prefix}site_manager_events`):
+
+| Area | Events |
+| --- | --- |
+| Authentication | logins, failed logins (folded per username + IP), logouts, password reset requests |
+| Users | created, deleted, profile/email changes, password changes, role changes (elevation to administrator is **critical**), application passwords, super admin |
+| Updates | WordPress core, plugins, themes and translations with **old → new version**, manual vs automatic, and failed automatic updates |
+| Plugins & themes | installed, activated, deactivated, deleted, auto-updates toggled, theme switched, Customizer published, built-in file editor used |
+| Content | created, published, scheduled, updated (fields changed), unpublished, trashed, restored, permanently deleted — every post type with an admin UI, plus Additional CSS, global styles, templates; media uploads/edits/deletions; Elementor edits |
+| Structure | categories/tags/custom terms, menus and menu items, widgets |
+| Comments | moderation, edits, deletions, comments by logged-in users |
+| Settings | core settings (security-relevant ones flagged), any plugin settings page saved through `options.php`, WooCommerce settings, Site Manager's own capability gates |
+| Data leaving the site | WXR exports, personal-data exports and erasures, activity-log CSV exports |
+| Integrations | WooCommerce order status changes and refunds, Gravity Forms forms/entries, Redirection redirects |
+| MCP | every write tool run (with redacted arguments and the OAuth client or application-password name), client authorizations and revocations |
+
+Each event stores time, actor (ID, login, role), IP (full / anonymized / off, optional proxy header), user agent, source (`admin`, `login`, `rest`, `mcp`, `cron`, `cli`, `ajax`, `xmlrpc`, `web`), severity (`info` → `critical`), the object acted on and before/after details. Repeated events (failed-login floods, rapid saves) fold into one row with an occurrence count.
+
+- **Settings → Site Manager → Activity Log**: filter by date, category, severity, source, user or text, and export CSV.
+- **MCP**: `activity_log_query`, `activity_stats`, and `activity_report`, which defaults to last calendar month or takes `month: "2026-09"`. The report covers update history with versions, plugin/theme changes, user changes, login stats, content changes, settings changes, security events and MCP usage.
+- Retention defaults to 365 days (0 = forever). There is deliberately no "clear" button; exporting the log and disabling Site Manager are themselves logged as events.
+- Developers can forward events (e.g. critical ones to Slack) with the `site_manager_activity_logged` action.
+
+## Tools (204)
 
 | Group | Tools |
 | --- | --- |
 | Site overview | `site_info`, `site_health`, `site_search` |
+| Activity log | `activity_log_query`, `activity_stats`, `activity_report` |
 | Content (any post type) | `post_types_list`, `post_list`, `post_get`, `post_create`, `post_update`, `post_delete`, `post_restore`, `post_duplicate`, `posts_bulk_update`, `content_search_replace`, `post_meta_get`, `post_meta_update`, `post_meta_delete`, `meta_keys_list`, `revisions_list`, `revision_get`, `revision_restore`, `post_blocks_get`, `post_blocks_update`, `block_types_list`, `block_patterns_list` |
 | Taxonomies | `taxonomies_list`, `terms_list`, `term_get`, `term_create`, `term_update`, `term_delete`, `post_terms_set` |
 | Media | `media_list`, `media_get`, `media_upload`, `media_update`, `media_delete`, `media_regenerate`, `image_sizes_list` |
@@ -61,7 +87,7 @@ Integration tools only appear when their plugin is active. Elementor pages keep 
 - `wp-config.php` and `.env` files are never readable.
 - Destructive tools carry MCP `destructiveHint` annotations so clients ask before running them; several also take `dry_run`.
 - Guards: can't delete or demote yourself, strip administrator capabilities, deactivate/delete Site Manager, or change `siteurl` / `home` without an explicit confirm flag.
-- Every write and every error is recorded in **Activity** (secrets redacted). Reads can be logged too.
+- Every MCP write and every error is recorded in **MCP Calls** (secrets redacted). Reads can be logged too. Write tool runs also appear in the site **Activity Log**.
 - **Connections** lists OAuth clients and revokes them instantly.
 
 ## Extending

@@ -67,7 +67,7 @@ class Site_Manager_Log {
 	 * Replace secret-looking values and shorten long strings (base64 file
 	 * payloads, full page content) so the log stays readable.
 	 */
-	private static function redact( $value, $key = '' ) {
+	public static function redact( $value, $key = '' ) {
 		if ( is_array( $value ) ) {
 			$out = array();
 			foreach ( $value as $k => $v ) {

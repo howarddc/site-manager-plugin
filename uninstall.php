@@ -11,7 +11,7 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 
 global $wpdb;
 
-foreach ( array( 'site_manager_oauth_clients', 'site_manager_oauth_tokens', 'site_manager_log' ) as $table ) {
+foreach ( array( 'site_manager_oauth_clients', 'site_manager_oauth_tokens', 'site_manager_log', 'site_manager_events' ) as $table ) {
 	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}{$table}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 }
 

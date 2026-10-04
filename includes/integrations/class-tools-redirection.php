@@ -229,6 +229,7 @@ class Site_Manager_Tools_Redirection {
 			'action_data' => array( 'url' => '' ),
 			'group_id'    => self::default_group(),
 			'regex'       => 0,
+			'match_data'  => array(),
 		);
 		if ( isset( $args['source'] ) ) {
 			$d['url'] = (string) $args['source'];

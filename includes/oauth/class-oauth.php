@@ -202,6 +202,17 @@ class Site_Manager_OAuth {
 			)
 		);
 
+		Site_Manager_Activity::log( array(
+			'category'    => 'site_manager',
+			'action'      => 'mcp_client_authorized',
+			'severity'    => 'warning',
+			'object_type' => 'oauth_client',
+			'object_id'   => $params['client_id'],
+			'object_name' => $params['client']['client_name'],
+			'message'     => sprintf( 'MCP client "%s" authorized for admin access.', $params['client']['client_name'] ),
+			'details'     => array( 'redirect_host' => wp_parse_url( $params['redirect_uri'], PHP_URL_HOST ) ),
+		) );
+
 		wp_redirect( $this->build_redirect( $params['redirect_uri'], array(
 			'code'  => $code,
 			'state' => $params['state'],

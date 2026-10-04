@@ -42,6 +42,10 @@ class Site_Manager_Settings {
 			'allow_php_exec'      => false,
 			'log_reads'           => false,
 			'log_retention_days'  => 30,
+			'activity_enabled'        => true,
+			'activity_retention_days' => 365,
+			'activity_ip'             => 'full',
+			'activity_ip_header'      => 'REMOTE_ADDR',
 		);
 	}
 

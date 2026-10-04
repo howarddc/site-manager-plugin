@@ -61,6 +61,11 @@ class Site_Manager_Server {
 			$client = Site_Manager_OAuth_Store::get_client( self::$token['client_id'] );
 			return $client ? 'oauth:' . $client['client_name'] : 'oauth';
 		}
+		$uuid = function_exists( 'rest_get_authenticated_app_password' ) ? rest_get_authenticated_app_password() : null;
+		if ( $uuid ) {
+			$item = WP_Application_Passwords::get_user_application_password( get_current_user_id(), $uuid );
+			return 'app-password:' . ( $item ? $item['name'] : $uuid );
+		}
 		return 'app-password';
 	}
 
@@ -80,7 +85,7 @@ class Site_Manager_Server {
 		return '';
 	}
 
-	private static function is_mcp_request() {
+	public static function is_mcp_request() {
 		$uri = isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : '';
 		if ( strpos( $uri, '/' . self::NAMESPACE_V1 . self::ROUTE ) !== false ) {
 			return true;
@@ -357,6 +362,22 @@ class Site_Manager_Server {
 				$ms,
 				self::client_label()
 			);
+		}
+
+		if ( $tool['writes'] ) {
+			Site_Manager_Activity::log( array(
+				'category'    => 'mcp',
+				'action'      => $is_error ? 'tool_failed' : 'tool_run',
+				'severity'    => $tool['gate'] ? 'critical' : ( $tool['destructive'] ? 'warning' : 'info' ),
+				'object_type' => 'mcp_tool',
+				'object_id'   => $name,
+				'object_name' => $name,
+				'message'     => sprintf( 'MCP tool %s %s via %s.', $name, $is_error ? 'failed' : 'ran', self::client_label() ),
+				'details'     => array(
+					'arguments' => Site_Manager_Log::redact( $args ),
+					'error'     => $is_error ? $result->get_error_message() : null,
+				),
+			) );
 		}
 
 		if ( $is_error ) {
