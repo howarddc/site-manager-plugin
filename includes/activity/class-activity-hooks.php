@@ -32,6 +32,12 @@ class Site_Manager_Activity_Hooks {
 		'wp_navigation'    => 'Navigation menu',
 	);
 
+	/** Form plugins whose forms are posts without an admin UI of their own. */
+	const FORM_POST_TYPES = array(
+		'wpforms'            => 'WPForms form',
+		'wpcf7_contact_form' => 'Contact form',
+	);
+
 	/** Options whose changes are security-relevant. */
 	const SECURITY_OPTIONS = array( 'users_can_register', 'default_role', 'admin_email', 'siteurl', 'home', 'blog_public' );
 
@@ -648,6 +654,9 @@ class Site_Manager_Activity_Hooks {
 		if ( isset( self::APPEARANCE_POST_TYPES[ $post_type ] ) ) {
 			return self::APPEARANCE_POST_TYPES[ $post_type ];
 		}
+		if ( isset( self::FORM_POST_TYPES[ $post_type ] ) ) {
+			return self::FORM_POST_TYPES[ $post_type ];
+		}
 		$obj = get_post_type_object( $post_type );
 		return $obj ? $obj->labels->singular_name : $post_type;
 	}
@@ -663,7 +672,7 @@ class Site_Manager_Activity_Hooks {
 		if ( wp_is_post_autosave( $post ) || wp_is_post_revision( $post ) ) {
 			return false;
 		}
-		if ( isset( self::APPEARANCE_POST_TYPES[ $post->post_type ] ) ) {
+		if ( isset( self::APPEARANCE_POST_TYPES[ $post->post_type ] ) || isset( self::FORM_POST_TYPES[ $post->post_type ] ) ) {
 			return true;
 		}
 		$obj = get_post_type_object( $post->post_type );
@@ -671,7 +680,13 @@ class Site_Manager_Activity_Hooks {
 	}
 
 	private static function post_category( WP_Post $post ) {
-		return isset( self::APPEARANCE_POST_TYPES[ $post->post_type ] ) ? 'theme' : ( $post->post_type === 'attachment' ? 'media' : 'post' );
+		if ( isset( self::APPEARANCE_POST_TYPES[ $post->post_type ] ) ) {
+			return 'theme';
+		}
+		if ( isset( self::FORM_POST_TYPES[ $post->post_type ] ) ) {
+			return 'form';
+		}
+		return $post->post_type === 'attachment' ? 'media' : 'post';
 	}
 
 	private static function post_event( WP_Post $post, $action, $message, $severity = 'info', array $details = array(), $dedupe = 0 ) {

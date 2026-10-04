@@ -32,6 +32,9 @@ rsync -a "$REPO_DIR/" "$STAGE/$SLUG/" \
   --exclude "AGENTS.md" \
   --exclude "CLAUDE.md" \
   --exclude "README.md" \
+  --exclude "CHANGELOG.md" \
+  --exclude "bin" \
+  --exclude "docs" \
   --exclude "build.sh"
 
 mkdir -p "$REPO_DIR/builds"

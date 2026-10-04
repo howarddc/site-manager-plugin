@@ -3,7 +3,7 @@
  * Plugin Name:       Site Manager
  * Plugin URI:        https://howard.ai
  * Description:       Admin-only MCP server that exposes WordPress to Claude and other MCP clients: content and custom post types, custom fields, media, users, comments, settings, menus, themes and plugins, with dedicated support for ACF, Yoast SEO, WooCommerce, Gravity Forms, WPForms, Contact Form 7, Redirection and Elementor — plus a site-wide activity log and branded monthly client reports.
- * Version:           0.4.0
+ * Version:           0.4.1
  * Requires at least: 6.2
  * Requires PHP:      7.4
  * Author:            Rob Howard
@@ -11,6 +11,7 @@
  * License:           GPL v2 or later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       site-manager
+ * Update URI:        https://github.com/howarddc/site-manager-plugin
  *
  * @package Site_Manager
  */
@@ -19,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'SITE_MANAGER_VERSION', '0.4.0' );
+define( 'SITE_MANAGER_VERSION', '0.4.1' );
 define( 'SITE_MANAGER_DB_VERSION', '2' );
 define( 'SITE_MANAGER_FILE', __FILE__ );
 define( 'SITE_MANAGER_DIR', __DIR__ );
