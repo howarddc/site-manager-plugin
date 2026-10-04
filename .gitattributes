@@ -1,2 +1,15 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Files that live in the repo but must NOT ship inside the plugin ZIP.
+# `git archive` (used by build.sh) honors these export-ignore rules.
+/.gitattributes export-ignore
+/.gitignore     export-ignore
+/.github/       export-ignore
+/build.sh       export-ignore
+/builds/        export-ignore
+/bin/           export-ignore
+/docs/          export-ignore
+/AGENTS.md      export-ignore
+/CLAUDE.md      export-ignore
+/CHANGELOG.md   export-ignore

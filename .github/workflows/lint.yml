@@ -1,0 +1,33 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  php:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Oldest supported (README: PHP 7.4+) and current.
+        php: ['7.4', '8.4']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: none
+      - name: Syntax check
+        run: find . -name '*.php' -not -path './vendor/*' -print0 | xargs -0 -n1 php -l
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build ZIP (checks versions match and bundles the update checker)
+        run: ./build.sh
+      - name: Confirm update checker is bundled and dev files are excluded
+        run: |
+          unzip -l builds/site-manager-*.zip | grep -q 'site-manager/vendor/plugin-update-checker/plugin-update-checker.php'
+          ! unzip -l builds/site-manager-*.zip | grep -E 'site-manager/(docs|bin)/|AGENTS.md|CHANGELOG.md|build.sh'

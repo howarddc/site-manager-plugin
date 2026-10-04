@@ -2,6 +2,20 @@
 
 All notable changes to Site Manager are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses [semantic versioning](https://semver.org/).
 
+## [1.0.0] — 2026-10-04
+
+First stable release.
+
+### Added
+
+- **Automatic updates from GitHub releases.** Installed copies check this repository's releases and update through the normal WordPress Plugins screen, bulk updates, automatic updates and WP-CLI. Only the `site-manager-<version>.zip` attached to a release is ever installed. Powered by the bundled [plugin-update-checker](https://github.com/YahnisElsts/plugin-update-checker) v5.7.
+- GitHub Actions workflow: PHP 7.4 and 8.4 syntax checks and a build check on every push.
+
+### Changed
+
+- `build.sh` now packages committed files with `git archive` (development files excluded via `.gitattributes`), bundles the update checker, accepts a git ref (`./build.sh v1.0.0`), and refuses to build if the version in the plugin header, version constant, README and changelog disagree.
+- Release zips now include `README.md`.
+
 ## [0.4.1] — 2026-10-04
 
 ### Fixed
@@ -77,7 +91,8 @@ All notable changes to Site Manager are documented here. The format follows [Kee
 - Settings → Site Manager admin screen: Connect, Tools, Connections and an MCP call log.
 - `site_manager_register_tools` action for adding tools.
 
-[0.4.1]: https://github.com/howarddc/site-manager-plugin/compare/6383f3f...HEAD
+[1.0.0]: https://github.com/howarddc/site-manager-plugin/compare/dd0ef62...v1.0.0
+[0.4.1]: https://github.com/howarddc/site-manager-plugin/compare/6383f3f...dd0ef62
 [0.4.0]: https://github.com/howarddc/site-manager-plugin/compare/6b7393f...6383f3f
 [0.3.0]: https://github.com/howarddc/site-manager-plugin/compare/0f92132...6b7393f
 [0.2.0]: https://github.com/howarddc/site-manager-plugin/compare/efae93c...0f92132

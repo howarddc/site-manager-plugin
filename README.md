@@ -9,7 +9,7 @@ Built for web design and development agencies that maintain many client sites.
 ![PHP 7.4+](https://img.shields.io/badge/PHP-7.4%2B-777bb4)
 
 - **Author:** Rob Howard — [howard.ai](https://howard.ai)
-- **Version:** 0.4.1 · [Changelog](CHANGELOG.md)
+- **Version:** 1.0.0 · [Changelog](CHANGELOG.md)
 - **License:** [GPL v2 or later](LICENSE)
 
 ## Contents
@@ -17,6 +17,7 @@ Built for web design and development agencies that maintain many client sites.
 - [Features](#features)
 - [Requirements](#requirements)
 - [Installation](#installation)
+- [Updates](#updates)
 - [Connecting an MCP client](#connecting-an-mcp-client)
 - [Security model](#security-model)
 - [Tools](#tools)
@@ -52,27 +53,23 @@ Tested with WordPress 7.1 and PHP 8.5; see [plugin integrations](#plugin-integra
 
 ## Installation
 
-**From a release zip**
+1. Download `site-manager-<version>.zip` from the [latest release](https://github.com/howarddc/site-manager-plugin/releases/latest).
+2. In WordPress, go to **Plugins → Add New → Upload Plugin**, upload the zip and activate **Site Manager**.
 
-1. Build the zip (or download one from the releases page):
+Always install from a release zip — it bundles the update checker that keeps the plugin current. To build a zip yourself, see [Development](#development).
 
-   ```bash
-   ./build.sh
-   ```
+## Updates
 
-   This writes `builds/site-manager-<version>.zip` containing a `site-manager/` folder.
-2. In WordPress, go to **Plugins → Add New → Upload Plugin**, upload the zip and activate it.
+Site Manager updates itself from this repository's GitHub releases, just like a plugin from WordPress.org:
 
-**From source**
+- WordPress checks for a newer release every 12 hours. To check right away, click **Check for updates** under Site Manager on the **Plugins** screen.
+- New versions appear on the **Plugins** screen with the usual **Update now** link, can be applied in bulk, and work with WordPress's automatic plugin updates and with WP-CLI (`wp plugin update site-manager`).
+- Updates install only the `site-manager-<version>.zip` attached to the release, which includes the update checker, so every update keeps updates working. A release without that zip is never offered as an update.
+- Each update is recorded in the [activity log](#activity-log) (`plugin_updated`, with old and new versions) like any other plugin update.
 
-```bash
-cd wp-content/plugins
-git clone https://github.com/howarddc/site-manager-plugin.git site-manager
-```
+Updates use [plugin-update-checker](https://github.com/YahnisElsts/plugin-update-checker) (MIT), bundled into release zips. The repository is public, so no access token is needed. The plugin header's `Update URI` also stops WordPress from offering an "update" from an unrelated WordPress.org plugin with the same slug.
 
-Then activate **Site Manager** under **Plugins**.
-
-The plugin header sets `Update URI` to this repository, so WordPress never offers an "update" from an unrelated WordPress.org plugin that happens to use the same slug.
+A copy installed from a git checkout has no automatic updates (the update checker isn't committed); use a release zip on real sites.
 
 ## Connecting an MCP client
 
@@ -320,6 +317,8 @@ includes/integrations/           Plugin integrations (loaded only when active)
 includes/activity/               Activity log storage, queries, reports and hooks
 includes/reports/                PDF writer, report data and delivery, renderer
 bin/generate-tool-docs.php       Regenerates docs/TOOLS.md
+build.sh                         Builds the release zip (bundles the update checker)
+.github/workflows/lint.yml       PHP 7.4 / 8.4 syntax check and build check on every push
 docs/                            Tool reference and activity event catalog
 ```
 
@@ -330,11 +329,14 @@ docs/                            Tool reference and activity event catalog
   wp eval-file wp-content/plugins/site-manager/bin/generate-tool-docs.php
   ```
 
-- **Build a release zip** (development files are excluded):
+- **Build a zip** — packages the committed files at a git ref (development files are excluded via `.gitattributes`), bundles the pinned update checker, and refuses to build if the plugin header, version constant, README and changelog versions disagree:
 
   ```bash
-  ./build.sh
+  ./build.sh            # from HEAD
+  ./build.sh v1.0.0     # from a tag
   ```
+
+- **Release** — see the release steps in [AGENTS.md](AGENTS.md#release). Installed sites pick up a new release automatically once it's published with its zip attached.
 
 ## License
 

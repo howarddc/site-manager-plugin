@@ -3,7 +3,7 @@
  * Plugin Name:       Site Manager
  * Plugin URI:        https://howard.ai
  * Description:       Admin-only MCP server that exposes WordPress to Claude and other MCP clients: content and custom post types, custom fields, media, users, comments, settings, menus, themes and plugins, with dedicated support for ACF, Yoast SEO, WooCommerce, Gravity Forms, WPForms, Contact Form 7, Redirection and Elementor — plus a site-wide activity log and branded monthly client reports.
- * Version:           0.4.1
+ * Version:           1.0.0
  * Requires at least: 6.2
  * Requires PHP:      7.4
  * Author:            Rob Howard
@@ -20,7 +20,30 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'SITE_MANAGER_VERSION', '0.4.1' );
+/**
+ * Updates come from GitHub releases. The update checker library is bundled
+ * into release zips by build.sh (it isn't committed), so a git checkout
+ * simply has no automatic updates.
+ */
+$site_manager_puc = __DIR__ . '/vendor/plugin-update-checker/plugin-update-checker.php';
+if ( file_exists( $site_manager_puc ) ) {
+	require_once $site_manager_puc;
+	$site_manager_updater = \YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
+		'https://github.com/howarddc/site-manager-plugin',
+		__FILE__,
+		'site-manager'
+	);
+	// Only ever install the site-manager-<version>.zip attached to a release:
+	// it bundles the update checker. GitHub's auto-generated source zip
+	// doesn't, so a release without the asset is ignored rather than
+	// installed (which would silently end automatic updates).
+	$site_manager_updater->getVcsApi()->enableReleaseAssets(
+		'/^site-manager-[0-9][0-9A-Za-z.\-]*\.zip$/',
+		class_exists( '\YahnisElsts\PluginUpdateChecker\v5p7\Vcs\Api' ) ? \YahnisElsts\PluginUpdateChecker\v5p7\Vcs\Api::REQUIRE_RELEASE_ASSETS : 2
+	);
+}
+
+define( 'SITE_MANAGER_VERSION', '1.0.0' );
 define( 'SITE_MANAGER_DB_VERSION', '2' );
 define( 'SITE_MANAGER_FILE', __FILE__ );
 define( 'SITE_MANAGER_DIR', __DIR__ );

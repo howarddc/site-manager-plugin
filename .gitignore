@@ -1,2 +1,12 @@
-builds/
+# Build output (zips produced by build.sh, attached to GitHub releases)
+/builds/
+
+# Bundled at build time by build.sh; never committed
+/vendor/
+
+# OS and editor cruft
 .DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log

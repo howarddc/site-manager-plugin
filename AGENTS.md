@@ -6,7 +6,7 @@ Working notes for contributors — AI coding agents and humans. User-facing docu
 
 **Site Manager** is a WordPress plugin that exposes a whole site to MCP clients such as Claude. It's admin-only. Author: Rob Howard ([howard.ai](https://howard.ai)). License: GPL v2 or later.
 
-- **Slug and text domain:** `site-manager`. The repository folder (`site-manager-plugin`) differs from the slug; `build.sh` packages everything into a `site-manager/` folder.
+- **Slug and text domain:** `site-manager`. The repository folder (`site-manager-plugin`) differs from the slug; `build.sh` packages everything into a `site-manager/` folder. Keep the slug and the main file name: the update checker and existing installs depend on `site-manager/site-manager.php`.
 - **Class prefix:** `Site_Manager_`. **Option, table, hook and nonce prefix:** `site_manager_`. **REST namespace:** `site-manager/v1`.
 - **Supported:** WordPress 6.2+, PHP 7.4+. Don't use PHP 8-only syntax or functions: `match`, `?->`, named arguments, union types, attributes, `str_contains()` / `str_starts_with()`, and so on.
 - The MCP and OAuth layer started from the `myiwai-improvements` plugin's `includes/mcp/` and was generalized: admin-only at every step, bearer tokens scoped to the MCP route, tool groups that can be switched off, and capability gates.
@@ -16,7 +16,9 @@ Working notes for contributors — AI coding agents and humans. User-facing docu
 ```
 site-manager.php                 Bootstrap: requires, activation/upgrade, hooks, site_manager_integrations()
 uninstall.php                    Drops tables, options and archived reports
-build.sh                         Builds builds/site-manager-<version>.zip
+build.sh                         Builds builds/site-manager-<version>.zip (bundles the update checker; checks versions)
+.gitattributes                   export-ignore rules: what stays out of the zip
+.github/workflows/lint.yml       CI: PHP 7.4/8.4 syntax check, build check
 bin/generate-tool-docs.php       Regenerates docs/TOOLS.md from the live registry
 docs/TOOLS.md                    Generated tool reference (don't edit by hand)
 docs/ACTIVITY-LOG.md             Activity log event catalog (keep in sync with the hooks)
@@ -98,10 +100,26 @@ Notes:
 
 ## Release
 
-1. Bump `Version:` and `SITE_MANAGER_VERSION` in `site-manager.php`, and the version in `README.md`.
-2. Add a section to `CHANGELOG.md`.
-3. Regenerate `docs/TOOLS.md`.
-4. Run `./build.sh` and test the zip on a clean site.
+Releases are GitHub releases; installed copies update from them automatically through the bundled [plugin-update-checker](https://github.com/YahnisElsts/plugin-update-checker) (pinned in `build.sh`). The checker compares the plugin header `Version` with the latest release's tag and installs only the attached `site-manager-<version>.zip` (`REQUIRE_RELEASE_ASSETS`), so **every release must have the built zip attached** — a release without it is ignored — and the tag must be `v<version>`. If you upgrade the pinned library version, update the `v5p7` class reference in `site-manager.php`.
+
+1. Bump the version in all four places — `build.sh` refuses to build if they differ:
+   - `Version:` in the `site-manager.php` header
+   - `SITE_MANAGER_VERSION` in `site-manager.php`
+   - `- **Version:**` in `README.md`
+   - a new `## [x.y.z] — YYYY-MM-DD` section at the top of `CHANGELOG.md` (and its compare link at the bottom)
+2. Regenerate `docs/TOOLS.md` if tools changed.
+3. Commit and push to `main`, then tag: `git tag -a vX.Y.Z -m "Site Manager X.Y.Z" && git push origin vX.Y.Z`.
+4. Build from the tag: `./build.sh vX.Y.Z` → `builds/site-manager-X.Y.Z.zip`.
+5. Create the release with the zip attached:
+
+   ```bash
+   gh release create vX.Y.Z builds/site-manager-X.Y.Z.zip --title "Site Manager X.Y.Z" --notes-file notes.md
+   ```
+
+   Publish it as a normal (non-draft, non-prerelease) release — drafts and prereleases are ignored by the update checker.
+6. Verify: on a site running the previous version, `wp plugin list` (or Dashboard → Updates → Check again) shows the new version, and updating installs it.
+
+Don't commit `vendor/` or `builds/` (both are in `.gitignore`).
 
 ## Ideas
 
