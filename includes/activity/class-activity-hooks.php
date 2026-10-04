@@ -358,10 +358,13 @@ class Site_Manager_Activity_Hooks {
 
 	public function plugin_activated( $file, $network ) {
 		$data = self::plugin_data( $file );
+		// Updating an active plugin deactivates it silently and reactivates it
+		// afterwards; record that as a reactivation, not a new activation.
+		$reactivation = Site_Manager_Activity::recent( 'plugin_updated', $file, 10 * MINUTE_IN_SECONDS );
 		self::log( array(
 			'category'    => 'plugin',
-			'action'      => 'plugin_activated',
-			'severity'    => 'notice',
+			'action'      => $reactivation ? 'plugin_reactivated' : 'plugin_activated',
+			'severity'    => $reactivation ? 'info' : 'notice',
 			'object_type' => 'plugin',
 			'object_id'   => $file,
 			'object_name' => $data['Name'],

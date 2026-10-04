@@ -6,6 +6,7 @@
  *   Connect      — endpoint URL and setup steps for Claude apps
  *   Tools        — tool categories, gated capabilities, log settings
  *   Connections  — OAuth clients holding tokens, with revoke
+ *   Reports      — branded monthly client reports (PDF + email)
  *   Activity Log — site-wide audit trail of every detectable action
  *   MCP Calls    — log of MCP tool calls
  *
@@ -26,6 +27,10 @@ class Site_Manager_Admin {
 		add_action( 'admin_post_site_manager_revoke', array( $this, 'revoke' ) );
 		add_action( 'admin_post_site_manager_clear_log', array( $this, 'clear_log' ) );
 		add_action( 'admin_post_site_manager_activity_export', array( $this, 'activity_export' ) );
+		add_action( 'admin_post_site_manager_report_settings', array( $this, 'report_settings_save' ) );
+		add_action( 'admin_post_site_manager_report_run', array( $this, 'report_run' ) );
+		add_action( 'admin_post_site_manager_report_download', array( $this, 'report_download' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue' ) );
 	}
 
 	public static function url( $tab = '', array $args = array() ) {
@@ -51,6 +56,7 @@ class Site_Manager_Admin {
 			'connect'     => __( 'Connect', 'site-manager' ),
 			'tools'       => __( 'Tools', 'site-manager' ),
 			'connections' => __( 'Connections', 'site-manager' ),
+			'reports'     => __( 'Reports', 'site-manager' ),
 			'activity'    => __( 'Activity Log', 'site-manager' ),
 			'mcp'         => __( 'MCP Calls', 'site-manager' ),
 		);
@@ -81,9 +87,16 @@ class Site_Manager_Admin {
 			'saved'   => __( 'Settings saved.', 'site-manager' ),
 			'revoked' => __( 'Connection revoked.', 'site-manager' ),
 			'cleared' => __( 'Activity log cleared.', 'site-manager' ),
+			'report_saved' => __( 'Report settings saved.', 'site-manager' ),
+			'report_sent'  => __( 'Report emailed.', 'site-manager' ),
 		);
 		if ( isset( $_GET['message'] ) && isset( $messages[ $_GET['message'] ] ) ) {
 			printf( '<div class="notice notice-success is-dismissible"><p>%s</p></div>', esc_html( $messages[ $_GET['message'] ] ) );
+		}
+		$error = get_transient( 'site_manager_admin_error_' . get_current_user_id() );
+		if ( $error ) {
+			delete_transient( 'site_manager_admin_error_' . get_current_user_id() );
+			printf( '<div class="notice notice-error is-dismissible"><p>%s</p></div>', esc_html( $error ) );
 		}
 	}
 
@@ -408,6 +421,296 @@ class Site_Manager_Admin {
 			) );
 		}
 		wp_safe_redirect( self::url( 'connections', array( 'message' => 'revoked' ) ) );
+		exit;
+	}
+
+	// ---------------------------------------------------------------
+	// Reports
+	// ---------------------------------------------------------------
+
+	public function enqueue( $hook ) {
+		if ( $hook === 'settings_page_' . self::PAGE && isset( $_GET['tab'] ) && $_GET['tab'] === 'reports' ) {
+			wp_enqueue_media();
+		}
+	}
+
+	private static function fail( $tab, $message ) {
+		set_transient( 'site_manager_admin_error_' . get_current_user_id(), $message, MINUTE_IN_SECONDS );
+		wp_safe_redirect( self::url( $tab ) );
+		exit;
+	}
+
+	/** The last 12 complete months plus the current month, newest first. */
+	private static function month_options() {
+		$out = array();
+		$d   = new DateTime( 'first day of this month', wp_timezone() );
+		for ( $i = 0; $i < 13; $i++ ) {
+			$out[ $d->format( 'Y-m' ) ] = wp_date( 'F Y', $d->getTimestamp() ) . ( $i === 0 ? ' ' . __( '(so far)', 'site-manager' ) : '' );
+			$d->modify( '-1 month' );
+		}
+		return $out;
+	}
+
+	private function render_reports() {
+		$s        = Site_Manager_Report::settings();
+		$logo_url = $s['logo_id'] ? wp_get_attachment_image_url( $s['logo_id'], 'medium' ) : '';
+		$archive  = Site_Manager_Report::archive();
+		$last     = ( new DateTime( 'first day of last month', wp_timezone() ) )->format( 'Y-m' );
+		$fmt      = get_option( 'date_format' ) . ' ' . get_option( 'time_format' );
+		?>
+		<p><?php esc_html_e( 'A branded PDF summarizing updates, content, users, security, sales and site health — for your client, by month.', 'site-manager' ); ?></p>
+
+		<div class="card" style="max-width:none;margin:16px 0;">
+			<h2 class="title"><?php esc_html_e( 'Generate a report', 'site-manager' ); ?></h2>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<input type="hidden" name="action" value="site_manager_report_run" />
+				<?php wp_nonce_field( 'site_manager_report_run' ); ?>
+				<label for="sm-report-month"><?php esc_html_e( 'Month', 'site-manager' ); ?></label>
+				<select id="sm-report-month" name="month">
+					<?php foreach ( self::month_options() as $value => $label ) : ?>
+						<option value="<?php echo esc_attr( $value ); ?>" <?php selected( $value, $last ); ?>><?php echo esc_html( $label ); ?></option>
+					<?php endforeach; ?>
+				</select>
+				<button type="submit" name="do" value="download" class="button"><?php esc_html_e( 'Download PDF', 'site-manager' ); ?></button>
+				<button type="submit" name="do" value="send" class="button button-primary" onclick="return confirm('<?php echo esc_js( $s['recipients'] ? sprintf( __( 'Email this report to %s?', 'site-manager' ), implode( ', ', $s['recipients'] ) ) : __( 'No recipients are set yet — add them below first.', 'site-manager' ) ); ?>');" <?php disabled( ! $s['recipients'] ); ?>><?php esc_html_e( 'Email to recipients', 'site-manager' ); ?></button>
+				<p>
+					<label for="sm-report-note" class="screen-reader-text"><?php esc_html_e( 'Note for this report', 'site-manager' ); ?></label>
+					<input type="text" id="sm-report-note" name="note" class="large-text" placeholder="<?php esc_attr_e( 'Optional note for this report only (e.g. “We also redesigned the contact page this month.”)', 'site-manager' ); ?>" />
+				</p>
+			</form>
+		</div>
+
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<input type="hidden" name="action" value="site_manager_report_settings" />
+			<?php wp_nonce_field( 'site_manager_report_settings' ); ?>
+
+			<h2><?php esc_html_e( 'Branding', 'site-manager' ); ?></h2>
+			<table class="form-table" role="presentation">
+				<tr>
+					<th scope="row"><label for="sm-r-title"><?php esc_html_e( 'Report title', 'site-manager' ); ?></label></th>
+					<td><input type="text" id="sm-r-title" name="title" class="regular-text" value="<?php echo esc_attr( $s['title'] ); ?>" /></td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="sm-r-agency"><?php esc_html_e( 'Agency name', 'site-manager' ); ?></label></th>
+					<td>
+						<input type="text" id="sm-r-agency" name="agency_name" class="regular-text" value="<?php echo esc_attr( $s['agency_name'] ); ?>" />
+						<p class="description"><?php esc_html_e( 'Shown in the letterhead and footer, and used as the email sender name.', 'site-manager' ); ?></p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="sm-r-url"><?php esc_html_e( 'Agency website', 'site-manager' ); ?></label></th>
+					<td><input type="url" id="sm-r-url" name="agency_url" class="regular-text" value="<?php echo esc_attr( $s['agency_url'] ); ?>" placeholder="https://" /></td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="sm-r-contact"><?php esc_html_e( 'Contact line', 'site-manager' ); ?></label></th>
+					<td><input type="text" id="sm-r-contact" name="agency_contact" class="regular-text" value="<?php echo esc_attr( $s['agency_contact'] ); ?>" placeholder="<?php esc_attr_e( 'support@agency.com · (555) 123-4567', 'site-manager' ); ?>" /></td>
+				</tr>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Logo', 'site-manager' ); ?></th>
+					<td>
+						<input type="hidden" id="sm-r-logo" name="logo_id" value="<?php echo (int) $s['logo_id']; ?>" />
+						<div id="sm-r-logo-preview" style="margin-bottom:8px;"><?php if ( $logo_url ) : ?><img src="<?php echo esc_url( $logo_url ); ?>" alt="" style="max-height:48px;max-width:200px;" /><?php endif; ?></div>
+						<button type="button" class="button" id="sm-r-logo-pick"><?php esc_html_e( 'Choose logo', 'site-manager' ); ?></button>
+						<button type="button" class="button-link button-link-delete" id="sm-r-logo-clear" <?php echo $s['logo_id'] ? '' : 'style="display:none"'; ?>><?php esc_html_e( 'Remove', 'site-manager' ); ?></button>
+						<p class="description"><?php esc_html_e( 'JPEG, PNG, GIF or WebP. Transparent areas print on white.', 'site-manager' ); ?></p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="sm-r-color"><?php esc_html_e( 'Accent color', 'site-manager' ); ?></label></th>
+					<td><input type="color" id="sm-r-color" name="accent_color" value="<?php echo esc_attr( $s['accent_color'] ); ?>" /></td>
+				</tr>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Paper size', 'site-manager' ); ?></th>
+					<td>
+						<label><input type="radio" name="paper" value="letter" <?php checked( $s['paper'], 'letter' ); ?> /> <?php esc_html_e( 'US Letter', 'site-manager' ); ?></label>
+						&nbsp; <label><input type="radio" name="paper" value="a4" <?php checked( $s['paper'], 'a4' ); ?> /> A4</label>
+					</td>
+				</tr>
+			</table>
+
+			<h2><?php esc_html_e( 'Content', 'site-manager' ); ?></h2>
+			<table class="form-table" role="presentation">
+				<tr>
+					<th scope="row"><label for="sm-r-intro"><?php esc_html_e( 'Introduction', 'site-manager' ); ?></label></th>
+					<td>
+						<textarea id="sm-r-intro" name="intro" rows="3" class="large-text"><?php echo esc_textarea( $s['intro'] ); ?></textarea>
+						<p class="description"><?php esc_html_e( 'Shown at the top of every report and email.', 'site-manager' ); ?></p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Sections', 'site-manager' ); ?></th>
+					<td>
+						<fieldset>
+							<?php foreach ( Site_Manager_Report::sections() as $key => $label ) : ?>
+								<label style="display:block;margin-bottom:4px;"><input type="checkbox" name="sections[]" value="<?php echo esc_attr( $key ); ?>" <?php checked( in_array( $key, (array) $s['sections'], true ) ); ?> /> <?php echo esc_html( $label ); ?></label>
+							<?php endforeach; ?>
+						</fieldset>
+						<p class="description"><?php esc_html_e( 'Store and form sections only appear when there is data for them.', 'site-manager' ); ?></p>
+					</td>
+				</tr>
+			</table>
+
+			<h2><?php esc_html_e( 'Delivery', 'site-manager' ); ?></h2>
+			<table class="form-table" role="presentation">
+				<tr>
+					<th scope="row"><label for="sm-r-recipients"><?php esc_html_e( 'Recipients', 'site-manager' ); ?></label></th>
+					<td>
+						<textarea id="sm-r-recipients" name="recipients" rows="3" class="large-text code" placeholder="client@example.com"><?php echo esc_textarea( implode( "\n", $s['recipients'] ) ); ?></textarea>
+						<p class="description"><?php esc_html_e( 'One email address per line (commas also work). Any addresses — they do not need WordPress accounts.', 'site-manager' ); ?></p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="sm-r-subject"><?php esc_html_e( 'Email subject', 'site-manager' ); ?></label></th>
+					<td>
+						<input type="text" id="sm-r-subject" name="subject" class="large-text" value="<?php echo esc_attr( $s['subject'] ); ?>" />
+						<p class="description"><?php echo wp_kses_post( __( 'Placeholders: <code>{title}</code> <code>{site}</code> <code>{period}</code> <code>{agency}</code>', 'site-manager' ) ); ?></p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="sm-r-reply"><?php esc_html_e( 'Reply-To', 'site-manager' ); ?></label></th>
+					<td><input type="email" id="sm-r-reply" name="reply_to" class="regular-text" value="<?php echo esc_attr( $s['reply_to'] ); ?>" /></td>
+				</tr>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Schedule', 'site-manager' ); ?></th>
+					<td>
+						<label><input type="checkbox" name="schedule" value="monthly" <?php checked( $s['schedule'], 'monthly' ); ?> /> <?php esc_html_e( 'Email last month’s report automatically on day', 'site-manager' ); ?></label>
+						<input type="number" name="send_day" min="1" max="28" class="small-text" value="<?php echo (int) $s['send_day']; ?>" aria-label="<?php esc_attr_e( 'Day of month', 'site-manager' ); ?>" />
+						<?php esc_html_e( 'of each month', 'site-manager' ); ?>
+						<?php if ( $s['last_sent'] ) : ?>
+							<p class="description"><?php echo esc_html( sprintf( __( 'Last scheduled report: %s.', 'site-manager' ), $s['last_sent'] ) ); ?></p>
+						<?php endif; ?>
+					</td>
+				</tr>
+			</table>
+			<?php submit_button( __( 'Save report settings', 'site-manager' ) ); ?>
+		</form>
+
+		<h2><?php esc_html_e( 'Archive', 'site-manager' ); ?></h2>
+		<table class="widefat striped" style="max-width:960px;">
+			<thead>
+				<tr>
+					<th scope="col"><?php esc_html_e( 'Period', 'site-manager' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Generated', 'site-manager' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Emailed to', 'site-manager' ); ?></th>
+					<th scope="col"></th>
+				</tr>
+			</thead>
+			<tbody>
+			<?php if ( ! $archive ) : ?>
+				<tr><td colspan="4"><?php esc_html_e( 'No reports yet.', 'site-manager' ); ?></td></tr>
+			<?php endif; ?>
+			<?php foreach ( $archive as $entry ) : ?>
+				<tr>
+					<td><strong><?php echo esc_html( $entry['period'] ); ?></strong></td>
+					<td><?php echo esc_html( mysql2date( $fmt, $entry['generated_at'] ) . ' · ' . $entry['generated_by'] ); ?></td>
+					<td><?php echo $entry['sent_to'] ? esc_html( implode( ', ', $entry['sent_to'] ) . ' (' . mysql2date( $fmt, $entry['sent_at'] ) . ')' ) : '&mdash;'; ?></td>
+					<td style="text-align:right;"><a class="button button-small" href="<?php echo esc_url( Site_Manager_Report::download_url( $entry['id'] ) ); ?>"><?php esc_html_e( 'Download', 'site-manager' ); ?></a></td>
+				</tr>
+			<?php endforeach; ?>
+			</tbody>
+		</table>
+
+		<script>
+		// Media scripts load in the footer, after this markup; wait for them.
+		document.addEventListener( 'DOMContentLoaded', function () {
+			var frame, pick = document.getElementById( 'sm-r-logo-pick' ), clear = document.getElementById( 'sm-r-logo-clear' );
+			var input = document.getElementById( 'sm-r-logo' ), preview = document.getElementById( 'sm-r-logo-preview' );
+			if ( ! pick || ! window.wp || ! wp.media ) { return; }
+			pick.addEventListener( 'click', function () {
+				frame = frame || wp.media( { title: <?php echo wp_json_encode( __( 'Choose logo', 'site-manager' ) ); ?>, library: { type: 'image' }, multiple: false } );
+				frame.off( 'select' ).on( 'select', function () {
+					var a = frame.state().get( 'selection' ).first().toJSON();
+					input.value = a.id;
+					var url = ( a.sizes && a.sizes.medium ) ? a.sizes.medium.url : a.url;
+					preview.innerHTML = '<img src="' + url + '" alt="" style="max-height:48px;max-width:200px;" />';
+					clear.style.display = '';
+				} );
+				frame.open();
+			} );
+			clear.addEventListener( 'click', function () { input.value = 0; preview.innerHTML = ''; clear.style.display = 'none'; } );
+		} );
+		</script>
+		<?php
+	}
+
+	public function report_settings_save() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Sorry, you are not allowed to do that.', 'site-manager' ), 403 );
+		}
+		check_admin_referer( 'site_manager_report_settings' );
+		$post   = wp_unslash( $_POST );
+		$result = Site_Manager_Report::update_settings( array(
+			'title'          => isset( $post['title'] ) ? $post['title'] : '',
+			'agency_name'    => isset( $post['agency_name'] ) ? $post['agency_name'] : '',
+			'agency_url'     => isset( $post['agency_url'] ) ? $post['agency_url'] : '',
+			'agency_contact' => isset( $post['agency_contact'] ) ? $post['agency_contact'] : '',
+			'logo_id'        => isset( $post['logo_id'] ) ? (int) $post['logo_id'] : 0,
+			'accent_color'   => isset( $post['accent_color'] ) ? $post['accent_color'] : '#2271b1',
+			'paper'          => isset( $post['paper'] ) ? $post['paper'] : 'letter',
+			'intro'          => isset( $post['intro'] ) ? $post['intro'] : '',
+			'sections'       => isset( $post['sections'] ) ? (array) $post['sections'] : array(),
+			'recipients'     => isset( $post['recipients'] ) ? $post['recipients'] : '',
+			'subject'        => isset( $post['subject'] ) ? $post['subject'] : '',
+			'reply_to'       => isset( $post['reply_to'] ) ? $post['reply_to'] : '',
+			'schedule'       => isset( $post['schedule'] ) ? 'monthly' : 'off',
+			'send_day'       => isset( $post['send_day'] ) ? (int) $post['send_day'] : 3,
+		) );
+		if ( is_wp_error( $result ) ) {
+			self::fail( 'reports', $result->get_error_message() );
+		}
+		wp_safe_redirect( self::url( 'reports', array( 'message' => 'report_saved' ) ) );
+		exit;
+	}
+
+	/** Generate a report from the admin, then download it or email it. */
+	public function report_run() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Sorry, you are not allowed to do that.', 'site-manager' ), 403 );
+		}
+		check_admin_referer( 'site_manager_report_run' );
+		$month  = isset( $_POST['month'] ) ? sanitize_text_field( wp_unslash( $_POST['month'] ) ) : '';
+		$note   = isset( $_POST['note'] ) ? sanitize_textarea_field( wp_unslash( $_POST['note'] ) ) : '';
+		$period = Site_Manager_Report::period( $month );
+		if ( is_wp_error( $period ) ) {
+			self::fail( 'reports', $period->get_error_message() );
+		}
+		list( $after, $before, $label ) = $period;
+		$report = Site_Manager_Report::generate( $after, $before, $label, true, $note );
+
+		if ( isset( $_POST['do'] ) && $_POST['do'] === 'send' ) {
+			$result = Site_Manager_Report::send( $report['entry']['id'], array(), $note );
+			if ( is_wp_error( $result ) ) {
+				self::fail( 'reports', $result->get_error_message() );
+			}
+			wp_safe_redirect( self::url( 'reports', array( 'message' => 'report_sent' ) ) );
+			exit;
+		}
+		$this->stream_pdf( $report['pdf'], $report['data'] );
+	}
+
+	public function report_download() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Sorry, you are not allowed to do that.', 'site-manager' ), 403 );
+		}
+		check_admin_referer( 'site_manager_report_download' );
+		$entry = Site_Manager_Report::archive_get( isset( $_GET['id'] ) ? sanitize_text_field( wp_unslash( $_GET['id'] ) ) : '' );
+		if ( ! $entry || ! file_exists( Site_Manager_Report::archive_path( $entry ) ) ) {
+			self::fail( 'reports', __( 'That report is no longer in the archive.', 'site-manager' ) );
+		}
+		$this->stream_pdf( file_get_contents( Site_Manager_Report::archive_path( $entry ) ), array(
+			'site'   => array( 'name' => wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) ),
+			'title'  => Site_Manager_Report::settings()['title'],
+			'period' => array( 'label' => $entry['period'] ),
+		) );
+	}
+
+	private function stream_pdf( $pdf, array $data ) {
+		$name = sanitize_file_name( $data['site']['name'] . ' - ' . $data['title'] . ' - ' . $data['period']['label'] ) . '.pdf';
+		nocache_headers();
+		header( 'Content-Type: application/pdf' );
+		header( 'Content-Disposition: attachment; filename="' . $name . '"' );
+		header( 'Content-Length: ' . strlen( $pdf ) );
+		echo $pdf; // phpcs:ignore WordPress.Security.EscapeOutput -- binary PDF.
 		exit;
 	}
 

@@ -2,8 +2,8 @@
 /**
  * Plugin Name:       Site Manager
  * Plugin URI:        https://howard.ai
- * Description:       Admin-only MCP server that exposes WordPress to Claude and other MCP clients: content and custom post types, custom fields, media, users, comments, settings, menus, themes and plugins, with dedicated support for ACF, Yoast SEO, WooCommerce, Gravity Forms, WPForms, Contact Form 7, Redirection and Elementor — plus a site-wide activity log for reporting and security audits.
- * Version:           0.3.0
+ * Description:       Admin-only MCP server that exposes WordPress to Claude and other MCP clients: content and custom post types, custom fields, media, users, comments, settings, menus, themes and plugins, with dedicated support for ACF, Yoast SEO, WooCommerce, Gravity Forms, WPForms, Contact Form 7, Redirection and Elementor — plus a site-wide activity log and branded monthly client reports.
+ * Version:           0.4.0
  * Requires at least: 6.2
  * Requires PHP:      7.4
  * Author:            Rob Howard
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'SITE_MANAGER_VERSION', '0.3.0' );
+define( 'SITE_MANAGER_VERSION', '0.4.0' );
 define( 'SITE_MANAGER_DB_VERSION', '2' );
 define( 'SITE_MANAGER_FILE', __FILE__ );
 define( 'SITE_MANAGER_DIR', __DIR__ );
@@ -28,6 +28,9 @@ require_once __DIR__ . '/includes/class-settings.php';
 require_once __DIR__ . '/includes/class-log.php';
 require_once __DIR__ . '/includes/activity/class-activity.php';
 require_once __DIR__ . '/includes/activity/class-activity-hooks.php';
+require_once __DIR__ . '/includes/reports/class-pdf.php';
+require_once __DIR__ . '/includes/reports/class-report.php';
+require_once __DIR__ . '/includes/reports/class-report-renderer.php';
 require_once __DIR__ . '/includes/class-schema.php';
 require_once __DIR__ . '/includes/class-helpers.php';
 require_once __DIR__ . '/includes/mcp/class-registry.php';
@@ -50,6 +53,7 @@ require_once __DIR__ . '/includes/tools/class-tools-plugins.php';
 require_once __DIR__ . '/includes/tools/class-tools-maintenance.php';
 require_once __DIR__ . '/includes/tools/class-tools-developer.php';
 require_once __DIR__ . '/includes/tools/class-tools-activity.php';
+require_once __DIR__ . '/includes/tools/class-tools-reports.php';
 require_once __DIR__ . '/includes/integrations/class-tools-acf.php';
 require_once __DIR__ . '/includes/integrations/class-tools-yoast.php';
 require_once __DIR__ . '/includes/integrations/class-tools-woocommerce.php';
@@ -133,6 +137,7 @@ add_action( 'init', function () {
 	new Site_Manager_Tools_Maintenance( $r );
 	new Site_Manager_Tools_Developer( $r );
 	new Site_Manager_Tools_Activity( $r );
+	new Site_Manager_Tools_Reports( $r );
 
 	foreach ( site_manager_integrations() as $class ) {
 		if ( $class::is_active() ) {
@@ -160,6 +165,7 @@ add_action( 'site_manager_daily', function () {
 	Site_Manager_OAuth_Store::purge_expired();
 	Site_Manager_Log::purge( Site_Manager_Settings::get( 'log_retention_days' ) );
 	Site_Manager_Activity::purge( Site_Manager_Settings::get( 'activity_retention_days' ) );
+	Site_Manager_Report::maybe_send_scheduled();
 } );
 
 add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function ( $links ) {

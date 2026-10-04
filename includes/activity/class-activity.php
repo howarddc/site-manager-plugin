@@ -402,7 +402,10 @@ class Site_Manager_Activity {
 			return array_map( function ( $r ) {
 				$r = self::format_row( $r );
 				return array_filter( array(
-					'time'    => $r['time'],
+					'time'     => $r['time'],
+					'severity' => $r['severity'],
+					'category' => $r['category'],
+					'action'   => $r['action'],
 					'user'    => $r['user'] ?: ( $r['source'] === 'cron' ? 'automatic' : $r['source'] ),
 					'object'  => $r['object_name'],
 					'message' => $r['message'],
@@ -480,6 +483,15 @@ class Site_Manager_Activity {
 				'refunds'              => $list( array( 'action' => 'order_refunded' ), 200 ),
 			),
 		);
+	}
+
+	/** Whether an event with this action/object was recorded in the last $seconds. */
+	public static function recent( $action, $object_id, $seconds ) {
+		global $wpdb;
+		return (bool) $wpdb->get_var( $wpdb->prepare(
+			'SELECT id FROM ' . self::table() . ' WHERE action = %s AND object_id = %s AND last_at >= %s LIMIT 1',
+			$action, (string) $object_id, gmdate( 'Y-m-d H:i:s', time() - (int) $seconds )
+		) );
 	}
 
 	/**

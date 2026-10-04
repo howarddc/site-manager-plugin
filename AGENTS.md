@@ -19,6 +19,7 @@ The MCP + OAuth layer is modeled on the sister plugin `myiwai-improvements` (`in
 site-manager.php                 Bootstrap, activation, init wiring
 includes/class-settings.php      Single option `site_manager_settings`; gates
 includes/class-log.php           {prefix}site_manager_log (MCP calls)
+includes/reports/                Client reports: PDF writer, data/archive/email/schedule, renderer
 includes/activity/               Site activity log: storage/query/report + WP hooks ({prefix}site_manager_events)
 includes/class-schema.php        Terse JSON Schema builders (Site_Manager_Schema::str() etc.)
 includes/class-helpers.php       Formatting + shared write helpers (apply_post_extras, apply_meta…)
@@ -42,6 +43,7 @@ includes/integrations/           ACF, Yoast, WooCommerce, Gravity Forms, WPForms
 - Prefer a plugin's own model/CRUD layer (WC_Product, GFAPI, Red_Item, Elementor Document::save) over raw meta writes, so caches, hooks and CSS regeneration still happen.
 - Third parties can add tools via the `site_manager_register_tools` action.
 - Activity events: call `Site_Manager_Activity::log( array( 'category', 'action', 'message', 'severity', 'object_type', 'object_id', 'object_name', 'details', 'dedupe' ) )`. Capture anything that will be destroyed (names, versions) on the "before" hook and log on the "after" hook. Use `dedupe` (seconds) for events that fire repeatedly. New integration hooks go in `Site_Manager_Activity_Hooks`; they cost nothing when the plugin is absent.
+- Reports: `Site_Manager_Report::data()` gathers everything as plain arrays (also returned by MCP); `Site_Manager_Report_Renderer` lays it out; `Site_Manager_PDF` is a minimal writer (Helvetica/Helvetica-Bold, WinAnsi, JPEG images, Flate streams). Character widths are generated from Adobe's AFM metrics — don't hand-edit them. Add a section by adding a key to `Site_Manager_Report::sections()`, data in `data()`, and a `section_<key>()` renderer method.
 - Bump `SITE_MANAGER_DB_VERSION` when a table schema changes (dbDelta runs on the next load).
 
 ## Testing

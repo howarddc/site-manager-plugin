@@ -1301,9 +1301,18 @@ class Site_Manager_Tools_WooCommerce {
 	// ---------------------------------------------------------------
 
 	public function sales_report( array $args ) {
+		return self::sales_summary(
+			Site_Manager_Helpers::arg( $args, 'after', wp_date( 'Y-m-d', strtotime( '-30 days' ) ) ),
+			Site_Manager_Helpers::arg( $args, 'before', wp_date( 'Y-m-d' ) ),
+			(int) Site_Manager_Helpers::arg( $args, 'top', 10 )
+		);
+	}
+
+	/**
+	 * Sales totals for a date range (site time), shared with client reports.
+	 */
+	public static function sales_summary( $after, $before, $top = 10 ) {
 		$tz     = wp_timezone();
-		$after  = Site_Manager_Helpers::arg( $args, 'after', wp_date( 'Y-m-d', strtotime( '-30 days' ) ) );
-		$before = Site_Manager_Helpers::arg( $args, 'before', wp_date( 'Y-m-d' ) );
 		$start  = ( new DateTime( $after . ' 00:00:00', $tz ) )->getTimestamp();
 		$end    = ( new DateTime( $before . ' 23:59:59', $tz ) )->getTimestamp();
 
@@ -1368,7 +1377,7 @@ class Site_Manager_Tools_WooCommerce {
 			'top_products'        => array_map( function ( $p ) use ( $round ) {
 				$p['revenue'] = $round( $p['revenue'] );
 				return $p;
-			}, array_slice( $products, 0, max( 1, (int) Site_Manager_Helpers::arg( $args, 'top', 10 ) ) ) ),
+			}, array_slice( $products, 0, max( 1, (int) $top ) ) ),
 			'truncated'           => count( $ids ) >= 10000,
 		);
 	}

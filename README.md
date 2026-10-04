@@ -48,12 +48,26 @@ Each event stores time, actor (ID, login, role), IP (full / anonymized / off, op
 - Retention defaults to 365 days (0 = forever). There is deliberately no "clear" button; exporting the log and disabling Site Manager are themselves logged as events.
 - Developers can forward events (e.g. critical ones to Slack) with the `site_manager_activity_logged` action.
 
-## Tools (204)
+## Client reports
+
+Branded monthly PDF reports for clients, generated from the activity log and live site data, and emailed on a schedule.
+
+- **Contents** (each section can be switched off): at-a-glance stats, software updates with old → new versions (manual vs automatic, failures), plugin and theme changes, content activity by post type, users and logins, client-relevant security events, WooCommerce sales and top products, form submissions (Gravity Forms, WPForms Pro, Contact Form 7 via Flamingo), and a site-health snapshot. Agency tooling (MCP runs, Site Manager settings) is left out of client reports.
+- **Branding**: report title, agency name, website, contact line, logo (any Media Library image; transparency prints on white), accent color, US Letter or A4, and an intro paragraph. An optional per-report note can be added.
+- **Delivery**: any list of recipient addresses (no WordPress accounts needed), subject template (`{title}`, `{site}`, `{period}`, `{agency}`), Reply-To, and the agency name as sender. A monthly schedule emails last month's report on a chosen day (sent once per month, even if a day is missed). Every send is recorded in the activity log.
+- **Archive**: the last 36 reports are kept in `uploads/site-manager-reports/` (blocked from direct access, random file names) and downloadable by admins.
+- **Admin**: Settings → Site Manager → Reports — generate any of the last 12 months as a PDF download or email it now.
+- **MCP**: `report_settings_get`, `report_settings_update`, `report_generate` (returns the data, archive ID and optionally the PDF), `report_send`, `reports_list`.
+
+PDFs are produced by a small built-in writer (`includes/reports/class-pdf.php`) using the standard Helvetica fonts — no external libraries.
+
+## Tools (209)
 
 | Group | Tools |
 | --- | --- |
 | Site overview | `site_info`, `site_health`, `site_search` |
 | Activity log | `activity_log_query`, `activity_stats`, `activity_report` |
+| Client reports | `report_settings_get`, `report_settings_update`, `report_generate`, `report_send`, `reports_list` |
 | Content (any post type) | `post_types_list`, `post_list`, `post_get`, `post_create`, `post_update`, `post_delete`, `post_restore`, `post_duplicate`, `posts_bulk_update`, `content_search_replace`, `post_meta_get`, `post_meta_update`, `post_meta_delete`, `meta_keys_list`, `revisions_list`, `revision_get`, `revision_restore`, `post_blocks_get`, `post_blocks_update`, `block_types_list`, `block_patterns_list` |
 | Taxonomies | `taxonomies_list`, `terms_list`, `term_get`, `term_create`, `term_update`, `term_delete`, `post_terms_set` |
 | Media | `media_list`, `media_get`, `media_upload`, `media_update`, `media_delete`, `media_regenerate`, `image_sizes_list` |
